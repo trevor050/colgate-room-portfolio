@@ -77,8 +77,8 @@ async function init() {
   room.addChild(awards);
   makeInteractive(awards, 'awards', app);
 
-  // Calendar on wall for schedule - higher up, next to awards
-  const calendar = createCalendar(590, 95);
+  // Calendar on wall for schedule - centered on wall
+  const calendar = createCalendar(350, 200);
   room.addChild(calendar);
   makeInteractive(calendar, 'schedule', app);
 
@@ -114,25 +114,19 @@ async function init() {
 function drawRoom(room: Container) {
   const bg = new Graphics();
   
-  // Wall - subtle gradient effect with panels
+  // Wall - cleaner single color with subtle gradient
   bg.rect(0, 0, ROOM_WIDTH, 420);
-  bg.fill(COLORS.wallLight);
+  bg.fill(0x4a4a5a); // Muted slate blue/grey
   
-  // Lower wall section (darker)
-  bg.rect(0, 280, ROOM_WIDTH, 140);
-  bg.fill(COLORS.wallDark);
+  // Subtle shadow at top for depth
+  bg.rect(0, 0, ROOM_WIDTH, 40);
+  bg.fill({ color: 0x000000, alpha: 0.2 });
   
-  // Chair rail molding
-  bg.rect(0, 275, ROOM_WIDTH, 8);
-  bg.fill(COLORS.woodDark);
-  bg.rect(0, 276, ROOM_WIDTH, 2);
-  bg.fill(COLORS.woodLight);
-  
-  // Baseboard
-  bg.rect(0, 412, ROOM_WIDTH, 10);
-  bg.fill(COLORS.woodDark);
-  bg.rect(0, 413, ROOM_WIDTH, 2);
-  bg.fill(COLORS.woodMid);
+  // Baseboard only (removed the huge lower wall section)
+  bg.rect(0, 410, ROOM_WIDTH, 12);
+  bg.fill(0x3a2a2a); // Dark wood
+  bg.rect(0, 410, ROOM_WIDTH, 2);
+  bg.fill(0x5a4a4a); // Highlight
   
   // Floor
   bg.rect(0, 422, ROOM_WIDTH, 180);
@@ -244,18 +238,6 @@ function drawRoom(room: Container) {
     shelf.fill(0xffffff);
   });
   
-  // Small globe on shelf
-  shelf.circle(305, 132, 10);
-  shelf.fill(0x4a7a9a);
-  shelf.circle(305, 132, 8);
-  shelf.fill(0x5a8aaa);
-  // Globe continents hint
-  shelf.rect(300, 130, 6, 3);
-  shelf.fill(0x4a8a4a);
-  // Globe stand
-  shelf.rect(301, 142, 8, 3);
-  shelf.fill(0x5a4a3a);
-  
   room.addChild(shelf);
 
   // Small plant on floor near window
@@ -283,6 +265,22 @@ function drawRoom(room: Container) {
   
   room.addChild(plant);
 
+  // College Pennant on wall (above academics)
+  const pennant = new Graphics();
+  // Pennant triangle
+  pennant.poly([180, 230, 180, 260, 240, 245]);
+  pennant.fill(0x8b0000); // Maroon (Colgate-ish)
+  // Side strip
+  pennant.rect(178, 228, 4, 34);
+  pennant.fill(0xdddddd);
+  // Text hint
+  pennant.rect(185, 243, 25, 4);
+  pennant.fill(0xffffff);
+  
+  room.addChild(pennant);
+
+  // Area rug in center of room
+
   // Area rug in center of room
   const rug = new Graphics();
   // Outer border
@@ -300,38 +298,10 @@ function drawRoom(room: Container) {
   
   room.addChild(rug);
 
-  // Small side table between desks with lamp
-  const sideTable = new Graphics();
-  
-  // Table top
-  sideTable.rect(325, 435, 50, 6);
-  sideTable.fill(COLORS.woodMid);
-  sideTable.rect(325, 435, 50, 2);
-  sideTable.fill(COLORS.woodLight);
-  
-  // Table legs (thinner)
-  sideTable.rect(330, 441, 6, 48);
-  sideTable.fill(COLORS.woodDark);
-  sideTable.rect(364, 441, 6, 48);
-  sideTable.fill(COLORS.woodDark);
-  
-  // Lamp on table
-  // Lamp base (sits on table)
-  sideTable.roundRect(342, 425, 16, 10, 2);
-  sideTable.fill(0x6a5a4a);
-  // Lamp pole
-  sideTable.rect(348, 395, 4, 30);
-  sideTable.fill(0x7a6a5a);
-  // Lamp shade
-  sideTable.poly([338, 395, 362, 395, 358, 378, 342, 378]);
-  sideTable.fill(0xddd8c8);
-  // Light inside shade
-  sideTable.poly([341, 393, 359, 393, 356, 380, 344, 380]);
-  sideTable.fill(0xfff5e0);
-  
-  room.addChild(sideTable);
+  // Small side table removed as requested
+  // No more lamp or side table code here
 
-  // Clock on wall
+  // Clock on wall - cleaner time (10:10)
   const clock = new Graphics();
   // Clock face
   clock.circle(745, 150, 25);
@@ -341,20 +311,25 @@ function drawRoom(room: Container) {
   // Clock center
   clock.circle(745, 150, 3);
   clock.fill(COLORS.woodDark);
-  // Hour hand
-  clock.rect(744, 135, 2, 15);
+  
+  // Hour hand (pointing to 10)
+  // Using rotation/lines logic manually for pixels
+  // Center is 745, 150
+  clock.poly([745, 150, 735, 140, 737, 138, 747, 148]); 
   clock.fill(COLORS.woodDark);
-  // Minute hand
-  clock.rect(744, 150, 2, 18);
+  
+  // Minute hand (pointing to 2 - actually 10:10)
+  clock.poly([745, 150, 755, 140, 757, 142, 747, 152]);
   clock.fill(0x4a4a5a);
+  
   // Hour markers
-  clock.circle(745, 130, 2);
+  clock.circle(745, 130, 2); // 12
   clock.fill(COLORS.woodDark);
-  clock.circle(745, 170, 2);
+  clock.circle(745, 170, 2); // 6
   clock.fill(COLORS.woodDark);
-  clock.circle(725, 150, 2);
+  clock.circle(725, 150, 2); // 9
   clock.fill(COLORS.woodDark);
-  clock.circle(765, 150, 2);
+  clock.circle(765, 150, 2); // 3
   clock.fill(COLORS.woodDark);
   
   room.addChild(clock);
@@ -729,7 +704,7 @@ function addLabels(room: Container) {
 
   const labels = [
     { text: 'AWARDS', x: 500, y: 180 },
-    { text: 'SCHEDULE', x: 625, y: 200 },
+    { text: 'SCHEDULE', x: 385, y: 305 },
     { text: 'ACADEMICS', x: 140, y: 510 },
     { text: 'PROJECTS', x: 610, y: 510 },
   ];
