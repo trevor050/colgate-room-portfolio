@@ -194,6 +194,588 @@ body {
   font-weight: bold;
 }
 
+/* ==========================================
+   PIXEL ART ICONS
+   ========================================== */
+.pixel-icon {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  flex-shrink: 0;
+}
+
+/* Trophy Icon - Gold */
+.pixel-icon.trophy {
+  width: 48px;
+  height: 48px;
+  background: 
+    /* Cup top rim */
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 8px 4px / 32px 4px,
+    /* Cup body */
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 12px 8px / 24px 20px,
+    /* Cup shine */
+    linear-gradient(to right, #ffec8a 0%, #ffec8a 100%) no-repeat 16px 12px / 4px 12px,
+    /* Left handle */
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 4px 8px / 8px 4px,
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 4px 12px / 4px 8px,
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 4px 20px / 8px 4px,
+    /* Right handle */
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 36px 8px / 8px 4px,
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 40px 12px / 4px 8px,
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 36px 20px / 8px 4px,
+    /* Stem */
+    linear-gradient(to right, #a67c3d 0%, #a67c3d 100%) no-repeat 20px 28px / 8px 8px,
+    /* Base */
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 12px 36px / 24px 4px,
+    linear-gradient(to right, #a67c3d 0%, #a67c3d 100%) no-repeat 8px 40px / 32px 4px;
+  filter: drop-shadow(0 2px 4px rgba(212, 168, 84, 0.4));
+}
+
+/* Graduate Cap Icon */
+.pixel-icon.graduate {
+  background:
+    /* Top of cap */
+    linear-gradient(to right, #4a5568 0%, #4a5568 100%) no-repeat 4px 8px / 24px 4px,
+    linear-gradient(to right, #2d3748 0%, #2d3748 100%) no-repeat 8px 4px / 16px 4px,
+    /* Cap base */
+    linear-gradient(to right, #4a5568 0%, #4a5568 100%) no-repeat 2px 12px / 28px 8px,
+    /* Tassel */
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 24px 4px / 4px 4px,
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 26px 8px / 4px 12px,
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 24px 20px / 8px 4px;
+}
+
+/* Medal Icon */
+.pixel-icon.medal {
+  background:
+    /* Ribbon */
+    linear-gradient(to right, #e53e3e 0%, #e53e3e 100%) no-repeat 12px 0px / 8px 12px,
+    linear-gradient(to right, #c53030 0%, #c53030 100%) no-repeat 8px 4px / 4px 8px,
+    linear-gradient(to right, #c53030 0%, #c53030 100%) no-repeat 20px 4px / 4px 8px,
+    /* Medal body */
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 8px 12px / 16px 16px,
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 12px 8px / 8px 4px,
+    /* Medal shine */
+    linear-gradient(to right, #ffec8a 0%, #ffec8a 100%) no-repeat 12px 16px / 4px 8px,
+    /* Star on medal */
+    linear-gradient(to right, #a67c3d 0%, #a67c3d 100%) no-repeat 14px 18px / 4px 4px;
+}
+
+/* Briefcase Icon */
+.pixel-icon.briefcase {
+  background:
+    /* Handle */
+    linear-gradient(to right, #5a4a40 0%, #5a4a40 100%) no-repeat 12px 4px / 8px 4px,
+    linear-gradient(to right, #5a4a40 0%, #5a4a40 100%) no-repeat 10px 4px / 4px 8px,
+    linear-gradient(to right, #5a4a40 0%, #5a4a40 100%) no-repeat 18px 4px / 4px 8px,
+    /* Body */
+    linear-gradient(to right, #8a7560 0%, #8a7560 100%) no-repeat 2px 10px / 28px 18px,
+    /* Clasp */
+    linear-gradient(to right, #d4a854 0%, #d4a854 100%) no-repeat 13px 16px / 6px 6px,
+    /* Shine */
+    linear-gradient(to right, #a08a70 0%, #a08a70 100%) no-repeat 6px 12px / 4px 12px;
+}
+
+/* Globe Icon */
+.pixel-icon.globe {
+  background:
+    /* Globe body */
+    linear-gradient(to right, #4299e1 0%, #4299e1 100%) no-repeat 4px 4px / 24px 24px,
+    /* Continents */
+    linear-gradient(to right, #48bb78 0%, #48bb78 100%) no-repeat 8px 8px / 8px 8px,
+    linear-gradient(to right, #48bb78 0%, #48bb78 100%) no-repeat 18px 12px / 6px 10px,
+    linear-gradient(to right, #48bb78 0%, #48bb78 100%) no-repeat 10px 18px / 8px 6px,
+    /* Latitude line */
+    linear-gradient(to right, #63b3ed 0%, #63b3ed 100%) no-repeat 4px 14px / 24px 2px,
+    /* Longitude line */
+    linear-gradient(to right, #63b3ed 0%, #63b3ed 100%) no-repeat 14px 4px / 2px 24px,
+    /* Stand */
+    linear-gradient(to right, #718096 0%, #718096 100%) no-repeat 12px 28px / 8px 4px;
+}
+
+/* Laptop Icon */
+.pixel-icon.laptop {
+  background:
+    /* Screen bezel */
+    linear-gradient(to right, #4a5568 0%, #4a5568 100%) no-repeat 2px 4px / 28px 16px,
+    /* Screen */
+    linear-gradient(to right, #2d3748 0%, #2d3748 100%) no-repeat 4px 6px / 24px 12px,
+    /* Code lines on screen */
+    linear-gradient(to right, #68d391 0%, #68d391 100%) no-repeat 6px 8px / 10px 2px,
+    linear-gradient(to right, #63b3ed 0%, #63b3ed 100%) no-repeat 6px 12px / 14px 2px,
+    linear-gradient(to right, #fc8181 0%, #fc8181 100%) no-repeat 6px 16px / 8px 2px,
+    /* Base/keyboard */
+    linear-gradient(to right, #718096 0%, #718096 100%) no-repeat 0px 20px / 32px 8px,
+    linear-gradient(to right, #a0aec0 0%, #a0aec0 100%) no-repeat 4px 22px / 24px 4px;
+}
+
+/* Star Icon */
+.pixel-icon.star {
+  background:
+    /* Star points */
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 12px 0px / 8px 8px,
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 0px 10px / 12px 8px,
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 20px 10px / 12px 8px,
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 4px 8px / 24px 12px,
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 8px 18px / 6px 10px,
+    linear-gradient(to right, #ffd700 0%, #ffd700 100%) no-repeat 18px 18px / 6px 10px,
+    /* Inner shine */
+    linear-gradient(to right, #ffec8a 0%, #ffec8a 100%) no-repeat 14px 10px / 4px 6px;
+}
+
+/* Package/Box Icon */
+.pixel-icon.package {
+  background:
+    /* Box body */
+    linear-gradient(to right, #dd6b20 0%, #dd6b20 100%) no-repeat 4px 8px / 24px 20px,
+    /* Box top flap */
+    linear-gradient(to right, #ed8936 0%, #ed8936 100%) no-repeat 4px 4px / 24px 6px,
+    /* Tape stripe */
+    linear-gradient(to right, #c4b5a0 0%, #c4b5a0 100%) no-repeat 14px 4px / 4px 24px,
+    /* Box shadow */
+    linear-gradient(to right, #c05621 0%, #c05621 100%) no-repeat 20px 10px / 6px 16px;
+}
+
+/* Book Icon */
+.pixel-icon.book {
+  background:
+    /* Book spine */
+    linear-gradient(to right, #c53030 0%, #c53030 100%) no-repeat 4px 4px / 6px 24px,
+    /* Book cover */
+    linear-gradient(to right, #e53e3e 0%, #e53e3e 100%) no-repeat 10px 4px / 18px 24px,
+    /* Pages */
+    linear-gradient(to right, #f7fafc 0%, #f7fafc 100%) no-repeat 12px 6px / 14px 20px,
+    /* Page lines */
+    linear-gradient(to right, #cbd5e0 0%, #cbd5e0 100%) no-repeat 14px 10px / 10px 2px,
+    linear-gradient(to right, #cbd5e0 0%, #cbd5e0 100%) no-repeat 14px 14px / 10px 2px,
+    linear-gradient(to right, #cbd5e0 0%, #cbd5e0 100%) no-repeat 14px 18px / 10px 2px;
+}
+
+/* ==========================================
+   FEATURED AWARD (Hackathon Hero Section)
+   ========================================== */
+.featured-award {
+  background: linear-gradient(135deg, rgba(212, 168, 84, 0.15) 0%, rgba(255, 215, 0, 0.05) 100%);
+  border: 2px solid rgba(212, 168, 84, 0.4);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 20px 0 28px 0;
+  display: flex;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.featured-award::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #d4a854, #ffd700, #d4a854);
+}
+
+.featured-award .pixel-icon.trophy {
+  animation: trophyPulse 2s ease-in-out infinite;
+}
+
+@keyframes trophyPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.featured-content {
+  flex: 1;
+}
+
+.featured-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 8px;
+  color: #d4a854;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.featured-title {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 14px !important;
+  color: #fff !important;
+  margin: 0 0 6px 0 !important;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+  line-height: 1.4 !important;
+}
+
+.featured-subtitle {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #aaa;
+  margin: 0 0 14px 0;
+}
+
+.featured-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.badge {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.badge.gold {
+  background: linear-gradient(135deg, #d4a854, #ffd700);
+  color: #1a1a2e;
+  font-weight: bold;
+  border: none;
+  box-shadow: 0 2px 8px rgba(212, 168, 84, 0.3);
+}
+
+.featured-description {
+  font-size: 18px !important;
+  line-height: 1.5 !important;
+  color: #bbb !important;
+  margin: 0 !important;
+}
+
+/* Other Awards Section */
+.other-awards-header {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 10px !important;
+  color: #888 !important;
+  margin: 24px 0 16px 0 !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.awards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.award-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.award-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.award-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.award-name {
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  color: #e0e0e0;
+}
+
+.award-org {
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  color: #888;
+}
+
+/* ==========================================
+   SCHEDULE GRID
+   ========================================== */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.class-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.class-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.class-card.ap {
+  border-color: rgba(138, 180, 248, 0.3);
+  background: linear-gradient(135deg, rgba(138, 180, 248, 0.08) 0%, transparent 100%);
+}
+
+.class-card.ap:hover {
+  border-color: rgba(138, 180, 248, 0.5);
+}
+
+.class-card.honors {
+  border-color: rgba(129, 199, 132, 0.3);
+  background: linear-gradient(135deg, rgba(129, 199, 132, 0.08) 0%, transparent 100%);
+}
+
+.class-card.honors:hover {
+  border-color: rgba(129, 199, 132, 0.5);
+}
+
+.class-card.special {
+  border-color: rgba(255, 183, 77, 0.3);
+  background: linear-gradient(135deg, rgba(255, 183, 77, 0.08) 0%, transparent 100%);
+}
+
+.class-card.special:hover {
+  border-color: rgba(255, 183, 77, 0.5);
+}
+
+.class-type {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.class-card.ap .class-type { color: #8ab4f8; }
+.class-card.honors .class-type { color: #81c784; }
+.class-card.special .class-type { color: #ffb74d; }
+
+.class-name {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #e0e0e0;
+}
+
+/* ==========================================
+   PROJECT CARDS
+   ========================================== */
+.project-card {
+  padding: 18px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.project-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.project-card.featured-project {
+  border-color: rgba(138, 180, 248, 0.25);
+  background: linear-gradient(135deg, rgba(138, 180, 248, 0.06) 0%, transparent 100%);
+}
+
+.project-card.featured-project:hover {
+  border-color: rgba(138, 180, 248, 0.4);
+}
+
+.project-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.project-header h3 {
+  font-family: 'VT323', monospace !important;
+  font-size: 22px !important;
+  color: #fff !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.project-org {
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  color: #888;
+  display: block;
+  margin-top: 2px;
+}
+
+.project-card p {
+  font-size: 17px !important;
+  line-height: 1.5 !important;
+  color: #aaa !important;
+  margin: 0 !important;
+}
+
+.project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tag {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(138, 180, 248, 0.15);
+  color: #8ab4f8;
+  border: 1px solid rgba(138, 180, 248, 0.25);
+}
+
+/* ==========================================
+   ACADEMICS STATS (improved)
+   ========================================== */
+#overlay-body .stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 20px;
+  transition: all 0.2s ease;
+}
+
+#overlay-body .stat:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+#overlay-body .stat-label {
+  color: #999;
+  font-size: 18px;
+}
+
+#overlay-body .stat-value {
+  color: #4ade80;
+  font-weight: bold;
+  font-size: 22px;
+  font-family: 'Press Start 2P', cursive;
+}
+
+/* ==========================================
+   ACADEMICS HERO (GPA & SAT Display)
+   ========================================== */
+.academics-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0 24px 0;
+}
+
+.gpa-display, .sat-display {
+  padding: 20px;
+  border-radius: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gpa-display {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.15) 0%, rgba(74, 222, 128, 0.05) 100%);
+  border: 2px solid rgba(74, 222, 128, 0.3);
+}
+
+.sat-display {
+  background: linear-gradient(135deg, rgba(138, 180, 248, 0.15) 0%, rgba(138, 180, 248, 0.05) 100%);
+  border: 2px solid rgba(138, 180, 248, 0.3);
+}
+
+.gpa-label, .sat-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.gpa-label { color: #4ade80; }
+.sat-label { color: #8ab4f8; }
+
+.gpa-value, .sat-value {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 28px;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* SAT Breakdown Bars */
+.sat-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.sat-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sat-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sat-section-name {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #aaa;
+}
+
+.sat-section-score {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 14px;
+  color: #fff;
+}
+
+.sat-bar {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sat-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+.sat-bar-fill.math {
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+}
+
+.sat-bar-fill.reading {
+  background: linear-gradient(90deg, #8ab4f8, #60a5fa);
+}
+
 /* Scrollbar styling */
 .overlay-content::-webkit-scrollbar {
   width: 8px;
@@ -305,5 +887,29 @@ body {
   #game-container,
   .hint {
     display: none;
+  }
+}
+
+/* Responsive adjustments for overlay content */
+@media screen and (max-width: 700px) {
+  .schedule-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .academics-hero {
+    grid-template-columns: 1fr;
+  }
+  
+  .featured-award {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .featured-details {
+    justify-content: center;
+  }
+  
+  .gpa-value, .sat-value {
+    font-size: 24px;
   }
 }
