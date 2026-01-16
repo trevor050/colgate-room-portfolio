@@ -240,44 +240,25 @@ function drawRoom(room: Container) {
   
   room.addChild(shelf);
 
-  // Small plant on floor near window
-  const plant = new Graphics();
-  
-  // Pot
-  plant.rect(185, 475, 30, 8);
-  plant.fill(0x8a5a4a);
-  plant.rect(188, 455, 24, 22);
-  plant.fill(0x9a6a5a);
-  plant.rect(188, 455, 24, 4);
-  plant.fill(0x8a5a4a);
-  
-  // Soil
-  plant.rect(190, 457, 20, 4);
-  plant.fill(0x4a3a2a);
-  
-  // Plant leaves
-  plant.ellipse(200, 445, 12, 15);
-  plant.fill(0x3a6a3a);
-  plant.ellipse(193, 450, 8, 12);
-  plant.fill(0x4a7a4a);
-  plant.ellipse(207, 448, 8, 12);
-  plant.fill(0x4a7a4a);
-  
-  room.addChild(plant);
-
-  // College Pennant on wall (above academics)
-  const pennant = new Graphics();
-  // Pennant triangle
-  pennant.poly([180, 230, 180, 260, 240, 245]);
-  pennant.fill(0x8b0000); // Maroon (Colgate-ish)
-  // Side strip
-  pennant.rect(178, 228, 4, 34);
-  pennant.fill(0xdddddd);
-  // Text hint
-  pennant.rect(185, 243, 25, 4);
-  pennant.fill(0xffffff);
-  
-  room.addChild(pennant);
+  // Framed painting (adds personality without clutter)
+  const painting = new Graphics();
+  // Frame
+  painting.rect(240, 205, 90, 70);
+  painting.fill(COLORS.woodDark);
+  painting.rect(244, 209, 82, 62);
+  painting.fill(0x1a2332);
+  // Sky
+  painting.rect(246, 211, 78, 28);
+  painting.fill(0x2a4a6a);
+  // Sun
+  painting.circle(305, 225, 10);
+  painting.fill(0xff6b6b);
+  // Mountains
+  painting.poly([246, 271, 274, 245, 296, 262, 324, 238, 324, 271]);
+  painting.fill(0x4ecdc4);
+  painting.poly([246, 271, 262, 255, 280, 271]);
+  painting.fill(0x3aa89f);
+  room.addChild(painting);
 
   // Area rug in center of room
 
@@ -301,7 +282,7 @@ function drawRoom(room: Container) {
   // Small side table removed as requested
   // No more lamp or side table code here
 
-  // Clock on wall - cleaner time (10:10)
+  // Clock on wall - readable time (10:10) with crisp hands
   const clock = new Graphics();
   // Clock face
   clock.circle(745, 150, 25);
@@ -312,14 +293,12 @@ function drawRoom(room: Container) {
   clock.circle(745, 150, 3);
   clock.fill(COLORS.woodDark);
   
-  // Hour hand (pointing to 10)
-  // Using rotation/lines logic manually for pixels
-  // Center is 745, 150
-  clock.poly([745, 150, 735, 140, 737, 138, 747, 148]); 
+  // Hour hand (short, angled up-left)
+  clock.poly([745, 150, 740, 143, 742, 141, 748, 148]);
   clock.fill(COLORS.woodDark);
-  
-  // Minute hand (pointing to 2 - actually 10:10)
-  clock.poly([745, 150, 755, 140, 757, 142, 747, 152]);
+
+  // Minute hand (longer, angled up-right)
+  clock.poly([745, 150, 753, 140, 755, 142, 747, 152]);
   clock.fill(0x4a4a5a);
   
   // Hour markers
