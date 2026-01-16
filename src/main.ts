@@ -7,6 +7,13 @@ import { content } from './content';
 const ROOM_WIDTH = 800;
 const ROOM_HEIGHT = 600;
 
+// Set viewport height CSS variable immediately (fixes iOS Safari 100vh issue)
+function setViewportHeight() {
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', `${vh}px`);
+}
+setViewportHeight();
+
 // Refined color palette - cozy bedroom vibes
 const COLORS = {
   // Walls - warm cozy tones (like a real bedroom)
@@ -53,19 +60,59 @@ async function init() {
   const container = document.getElementById('game-container')!;
   container.appendChild(app.canvas);
 
+  // Safari-safe resize function
   function resize() {
-    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    // Use visualViewport for mobile Safari, with fallbacks
+    let viewportWidth: number;
+    let viewportHeight: number;
+    
+    if (window.visualViewport) {
+      viewportWidth = window.visualViewport.width;
+      viewportHeight = window.visualViewport.height;
+    } else {
+      // Fallback for older browsers
+      viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+      viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+    }
+    
+    // Account for safe areas on notched devices
+    const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top')) || 0;
+    const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')) || 0;
+    const safeAreaLeft = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left')) || 0;
+    const safeAreaRight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right')) || 0;
+    
+    // Adjust for safe areas
+    const availableWidth = viewportWidth - safeAreaLeft - safeAreaRight;
+    const availableHeight = viewportHeight - safeAreaTop - safeAreaBottom;
+    
+    // Calculate scale to fit the room, with a small margin for breathing room
     const scale = Math.min(
-      viewportWidth / ROOM_WIDTH,
-      viewportHeight / ROOM_HEIGHT
+      (availableWidth * 0.98) / ROOM_WIDTH,
+      (availableHeight * 0.95) / ROOM_HEIGHT
     );
+    
     app.canvas.style.width = `${ROOM_WIDTH * scale}px`;
     app.canvas.style.height = `${ROOM_HEIGHT * scale}px`;
+    
+    // Update CSS custom property for viewport height (fixes iOS 100vh bug)
+    document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
   }
   
   resize();
+  
+  // Listen to multiple events for Safari compatibility
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => {
+    // Delay resize on orientation change for Safari to settle
+    setTimeout(resize, 100);
+    setTimeout(resize, 300);
+  });
+  
+  // Visual viewport resize (important for mobile Safari keyboard, toolbar changes)
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resize);
+    window.visualViewport.addEventListener('scroll', resize);
+  }
 
   const room = new Container();
   app.stage.addChild(room);

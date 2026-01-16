@@ -4,18 +4,50 @@
   box-sizing: border-box;
 }
 
+/* CSS custom properties for Safari-safe viewport */
+:root {
+  --app-height: 100vh;
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+}
+
+html {
+  /* Prevent iOS rubber-banding/overscroll */
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   background: #1a1a2e;
   overflow: hidden;
   font-family: 'VT323', monospace;
+  /* Use custom property for height, fallback to 100vh */
+  width: 100%;
+  height: var(--app-height, 100vh);
+  height: 100dvh; /* Dynamic viewport height - modern browsers */
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* Handle notches and safe areas */
+  padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #game-container {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  /* Prevent touch actions from causing scroll/zoom */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #game-container canvas {
@@ -28,14 +60,17 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: var(--app-height, 100vh);
+  height: 100dvh;
   background: #1a1a2e;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
   transition: opacity 0.5s ease-out;
+  /* Safe area padding */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #loading.hidden {
@@ -60,8 +95,9 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: var(--app-height, 100vh);
+  height: 100dvh;
   background: rgba(0, 0, 0, 0.85);
   display: flex;
   justify-content: center;
@@ -71,6 +107,9 @@ body {
   pointer-events: none;
   transition: opacity 0.3s ease;
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  /* Safe area padding */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .overlay.visible {
@@ -86,6 +125,7 @@ body {
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
+  max-height: 80dvh;
   overflow-y: auto;
   position: relative;
   background-clip: padding-box;
@@ -97,6 +137,10 @@ body {
     inset 0 0 60px rgba(0, 0, 0, 0.3);
   transform: scale(0.9);
   transition: transform 0.3s ease;
+  /* iOS Safari smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent body scroll when scrolling overlay */
+  overscroll-behavior: contain;
 }
 
 .overlay.visible .overlay-content {
@@ -849,8 +893,9 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: var(--app-height, 100vh);
+  height: 100dvh;
   background: #1a1a2e;
   z-index: 2000;
   flex-direction: column;
@@ -858,6 +903,7 @@ body {
   align-items: center;
   gap: 24px;
   padding: 20px;
+  padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
 }
 
 .rotate-device-icon {
@@ -926,6 +972,116 @@ body {
   }
 }
 
+/* Mobile landscape specific fixes (especially for Safari) */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  /* Tighter overlay for short landscape screens */
+  .overlay-content {
+    max-height: calc(100% - 20px);
+    padding: 16px 20px;
+    margin: 10px;
+  }
+  
+  #overlay-body h2 {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  
+  #overlay-body h3 {
+    font-size: 10px;
+    margin: 12px 0 8px 0;
+  }
+  
+  #overlay-body p {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  
+  #overlay-body li {
+    font-size: 16px;
+    padding: 6px 0;
+    padding-left: 20px;
+  }
+  
+  .close-btn {
+    top: 8px;
+    right: 12px;
+    font-size: 28px;
+  }
+  
+  .hint {
+    font-size: 8px;
+    bottom: 8px;
+  }
+  
+  /* Compact academics hero in landscape */
+  .academics-hero {
+    gap: 10px;
+    margin: 12px 0 16px 0;
+  }
+  
+  .gpa-display, .sat-display {
+    padding: 12px;
+  }
+  
+  .gpa-value, .sat-value {
+    font-size: 20px;
+  }
+  
+  /* Compact featured award */
+  .featured-award {
+    padding: 16px;
+    margin: 12px 0 16px 0;
+    gap: 12px;
+  }
+  
+  .featured-title {
+    font-size: 11px !important;
+  }
+  
+  .featured-description {
+    font-size: 15px !important;
+  }
+  
+  /* Smaller stat rows */
+  #overlay-body .stat {
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+  
+  #overlay-body .stat-label {
+    font-size: 14px;
+  }
+  
+  #overlay-body .stat-value {
+    font-size: 16px;
+  }
+}
+
+/* Very short landscape (e.g., iPhone SE in landscape with Safari toolbar) */
+@media screen and (max-height: 380px) and (orientation: landscape) {
+  .overlay-content {
+    padding: 12px 16px;
+    border-radius: 10px;
+  }
+  
+  #overlay-body h2 {
+    font-size: 10px;
+    margin-bottom: 8px;
+  }
+  
+  .gpa-value, .sat-value {
+    font-size: 18px;
+  }
+  
+  .academics-hero {
+    margin: 8px 0 12px 0;
+  }
+  
+  .gpa-display, .sat-display {
+    padding: 8px;
+  }
+}
+
 /* Responsive adjustments for overlay content */
 @media screen and (max-width: 700px) {
   .schedule-grid {
@@ -947,5 +1103,21 @@ body {
   
   .gpa-value, .sat-value {
     font-size: 24px;
+  }
+}
+
+/* Keep grid layout in landscape even on smaller screens */
+@media screen and (max-width: 700px) and (orientation: landscape) {
+  .academics-hero {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .featured-award {
+    flex-direction: row;
+    text-align: left;
+  }
+  
+  .featured-details {
+    justify-content: flex-start;
   }
 }
