@@ -72,13 +72,13 @@ async function init() {
   drawRoom(room);
 
   // Interactive elements
-  // Awards - 3 frames on wall, cleaner placement
-  const awards = createAwards(420, 100);
+  // Awards - centered on upper wall
+  const awards = createAwards(340, 80);
   room.addChild(awards);
   makeInteractive(awards, 'awards', app);
 
-  // Calendar on wall for schedule - centered on wall
-  const calendar = createCalendar(350, 200);
+  // Calendar on wall for schedule - left of center, lower section
+  const calendar = createCalendar(280, 230);
   room.addChild(calendar);
   makeInteractive(calendar, 'schedule', app);
 
@@ -114,19 +114,23 @@ async function init() {
 function drawRoom(room: Container) {
   const bg = new Graphics();
   
-  // Wall - cleaner single color with subtle gradient
+  // Wall - warm evening tone, no weird border
   bg.rect(0, 0, ROOM_WIDTH, 420);
-  bg.fill(0x4a4a5a); // Muted slate blue/grey
+  bg.fill(0x4a4a5c); // Warm slate
   
-  // Subtle shadow at top for depth
-  bg.rect(0, 0, ROOM_WIDTH, 40);
-  bg.fill({ color: 0x000000, alpha: 0.2 });
+  // Subtle wainscoting effect - lower wall slightly different
+  bg.rect(0, 320, ROOM_WIDTH, 100);
+  bg.fill(0x424252);
   
-  // Baseboard only (removed the huge lower wall section)
+  // Thin trim line between upper and lower wall
+  bg.rect(0, 318, ROOM_WIDTH, 4);
+  bg.fill(0x5a5a6a);
+  
+  // Baseboard
   bg.rect(0, 410, ROOM_WIDTH, 12);
-  bg.fill(0x3a2a2a); // Dark wood
+  bg.fill(0x3a3030);
   bg.rect(0, 410, ROOM_WIDTH, 2);
-  bg.fill(0x5a4a4a); // Highlight
+  bg.fill(0x5a5050);
   
   // Floor
   bg.rect(0, 422, ROOM_WIDTH, 180);
@@ -240,78 +244,76 @@ function drawRoom(room: Container) {
   
   room.addChild(shelf);
 
-  // Framed painting (adds personality without clutter)
+  // Framed painting - right side wall, lower to balance
   const painting = new Graphics();
+  // Frame shadow
+  painting.rect(702, 192, 75, 60);
+  painting.fill(0x2a2a3a);
   // Frame
-  painting.rect(240, 205, 90, 70);
+  painting.rect(700, 190, 75, 60);
   painting.fill(COLORS.woodDark);
-  painting.rect(244, 209, 82, 62);
+  painting.rect(705, 195, 65, 50);
   painting.fill(0x1a2332);
-  // Sky
-  painting.rect(246, 211, 78, 28);
-  painting.fill(0x2a4a6a);
+  // Abstract landscape - sky gradient
+  painting.rect(707, 197, 61, 25);
+  painting.fill(0x5a7a9a);
+  // Sunset glow
+  painting.rect(707, 215, 61, 8);
+  painting.fill(0xcc8866);
   // Sun
-  painting.circle(305, 225, 10);
-  painting.fill(0xff6b6b);
+  painting.circle(750, 213, 8);
+  painting.fill(0xffaa66);
   // Mountains
-  painting.poly([246, 271, 274, 245, 296, 262, 324, 238, 324, 271]);
-  painting.fill(0x4ecdc4);
-  painting.poly([246, 271, 262, 255, 280, 271]);
-  painting.fill(0x3aa89f);
+  painting.poly([707, 245, 725, 225, 745, 233, 768, 217, 768, 245]);
+  painting.fill(0x3a5a4a);
   room.addChild(painting);
 
-  // Area rug in center of room
-
-  // Area rug in center of room
-  const rug = new Graphics();
-  // Outer border
-  rug.roundRect(280, 495, 150, 65, 4);
-  rug.fill(0x4a3a4a);
-  // Main rug area
-  rug.roundRect(286, 500, 138, 55, 3);
-  rug.fill(0x5a4a5a);
-  // Inner pattern area
-  rug.roundRect(294, 507, 122, 41, 2);
-  rug.fill(0x6a5a6a);
-  // Center diamond pattern
-  rug.poly([355, 510, 375, 527, 355, 544, 335, 527]);
-  rug.fill(0x7a6a5a);
-  
-  room.addChild(rug);
-
-  // Small side table removed as requested
-  // No more lamp or side table code here
-
-  // Clock on wall - readable time (10:10) with crisp hands
+  // Clock on wall - upper right, clean analog look
   const clock = new Graphics();
   // Clock face
-  clock.circle(745, 150, 25);
+  clock.circle(620, 95, 20);
   clock.fill(COLORS.cream);
-  clock.circle(745, 150, 22);
+  clock.circle(620, 95, 17);
   clock.stroke({ width: 2, color: COLORS.woodDark });
   // Clock center
-  clock.circle(745, 150, 3);
+  clock.circle(620, 95, 2);
   clock.fill(COLORS.woodDark);
   
-  // Hour hand (short, angled up-left)
-  clock.poly([745, 150, 740, 143, 742, 141, 748, 148]);
+  // Hour hand pointing to 10 (angled up-left)
+  clock.poly([620, 95, 612, 87, 614, 85, 622, 93]);
   clock.fill(COLORS.woodDark);
-
-  // Minute hand (longer, angled up-right)
-  clock.poly([745, 150, 753, 140, 755, 142, 747, 152]);
-  clock.fill(0x4a4a5a);
   
-  // Hour markers
-  clock.circle(745, 130, 2); // 12
+  // Minute hand pointing to 2 (angled up-right)  
+  clock.poly([620, 95, 630, 83, 632, 85, 622, 97]);
+  clock.fill(0x5a5a6a);
+  
+  // Hour markers (just dots)
+  clock.circle(620, 78, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(745, 170, 2); // 6
+  clock.circle(620, 112, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(725, 150, 2); // 9
+  clock.circle(603, 95, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(765, 150, 2); // 3
+  clock.circle(637, 95, 2);
   clock.fill(COLORS.woodDark);
   
   room.addChild(clock);
+
+  // Simple area rug to tie the room together
+  const rug = new Graphics();
+  // Outer border
+  rug.roundRect(320, 510, 160, 55, 3);
+  rug.fill(0x4a3a4a);
+  // Main rug
+  rug.roundRect(326, 515, 148, 45, 2);
+  rug.fill(0x5a4a5a);
+  // Inner pattern - filled rectangle
+  rug.roundRect(334, 522, 132, 31, 2);
+  rug.fill(0x6a5a6a);
+  // Center accent line
+  rug.rect(360, 535, 80, 4);
+  rug.fill(0x7a6a5a);
+  room.addChild(rug);
 }
 
 function createAwards(x: number, y: number): Container {
@@ -682,8 +684,8 @@ function addLabels(room: Container) {
   });
 
   const labels = [
-    { text: 'AWARDS', x: 500, y: 180 },
-    { text: 'SCHEDULE', x: 385, y: 305 },
+    { text: 'AWARDS', x: 423, y: 155 },
+    { text: 'SCHEDULE', x: 315, y: 335 },
     { text: 'ACADEMICS', x: 140, y: 510 },
     { text: 'PROJECTS', x: 610, y: 510 },
   ];
