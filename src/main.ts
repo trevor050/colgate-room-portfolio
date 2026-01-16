@@ -68,8 +68,7 @@ async function init() {
   container.appendChild(app.canvas);
 
   function resize() {
-    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const { width: viewportWidth, height: viewportHeight } = container.getBoundingClientRect();
     const scale = Math.min(
       viewportWidth / ROOM_WIDTH,
       viewportHeight / ROOM_HEIGHT

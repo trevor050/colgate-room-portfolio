@@ -887,6 +887,31 @@ body {
   pointer-events: none;
 }
 
+/* Mobile desktop-warning banner */
+.mobile-warning {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1500;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+  pointer-events: none;
+}
+
+@media screen and (max-width: 900px) {
+  .mobile-warning {
+    display: block;
+  }
+}
+
 /* Mobile portrait rotation message */
 .rotate-device {
   display: none;
