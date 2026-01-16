@@ -1,7 +1,12 @@
 import './style.css';
 import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
+import { inject } from '@vercel/analytics';
 import { content } from './content';
+
+if (import.meta.env.PROD) {
+  inject();
+}
 
 // Room dimensions
 const ROOM_WIDTH = 800;
