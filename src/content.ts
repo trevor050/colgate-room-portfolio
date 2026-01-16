@@ -26,7 +26,6 @@ export const content: Record<string, ContentItem> = {
           <div class="featured-details">
             <span class="badge gold">1st Place</span>
             <span class="badge">Team Lead</span>
-            <span class="badge">Java</span>
           </div>
           <p class="featured-description">Co-led a team of 3 to victory in a competitive statewide hackathon, solving complex Java challenges under time pressure. This experience sharpened my problem-solving skills and reinforced my passion for collaborative coding.</p>
         </div>
@@ -60,7 +59,7 @@ export const content: Record<string, ContentItem> = {
     html: `
       <h2>Academic Profile</h2>
       
-      <div class="academics-hero\">
+      <div class="academics-hero">
         <div class="gpa-display">
           <span class="gpa-label">Weighted GPA</span>
           <span class="gpa-value">4.07</span>
@@ -70,6 +69,8 @@ export const content: Record<string, ContentItem> = {
           <span class="sat-value">1440</span>
         </div>
       </div>
+
+      <p class="trend-note"><span class="highlight">Upward GPA trend:</span> ~3.5 freshman year → 4.0 senior year</p>
       
       <h3>Academic Stats</h3>
       <div class="stat">
@@ -138,7 +139,7 @@ export const content: Record<string, ContentItem> = {
           <span class="class-name">Pre-Calculus</span>
         </div>
         <div class="class-card special">
-          <span class="class-type">Career</span>
+          <span class="class-type">Experiential Learning</span>
           <span class="class-name">Technology Internship</span>
         </div>
       </div>
@@ -163,8 +164,8 @@ export const content: Record<string, ContentItem> = {
         </div>
         <p>Manage lifecycle of 10,000+ IT assets, resolve hundreds of tickets, trained 7 new interns in 2025.</p>
         <div class="project-tags">
-          <span class="tag">IT Management</span>
-          <span class="tag">Leadership</span>
+          <span class="tag">10K+ Assets</span>
+          <span class="tag">Trained 7 Interns</span>
         </div>
       </div>
       
@@ -179,7 +180,6 @@ export const content: Record<string, ContentItem> = {
         <p>Built civic site explaining federal tax spending with 100,000+ visitors. Connects visitors to aligned organizations.</p>
         <div class="project-tags">
           <span class="tag">100K+ Visitors</span>
-          <span class="tag">Civic Tech</span>
         </div>
       </div>
       
@@ -215,8 +215,8 @@ export const content: Record<string, ContentItem> = {
         </div>
         <p>Lightweight npm package for filtering harmful content; 1,000+ downloads and deployed on client sites.</p>
         <div class="project-tags">
-          <span class="tag">npm</span>
           <span class="tag">1K+ Downloads</span>
+          <span class="tag">Open Source</span>
         </div>
       </div>
       

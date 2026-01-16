@@ -148,6 +148,12 @@ body {
   margin-bottom: 12px;
 }
 
+.trend-note {
+  margin: 6px 0 18px;
+  color: #cfd3dc;
+  font-size: 18px;
+}
+
 #overlay-body ul {
   list-style: none;
   padding-left: 0;
@@ -641,6 +647,36 @@ body {
   background: rgba(138, 180, 248, 0.15);
   color: #8ab4f8;
   border: 1px solid rgba(138, 180, 248, 0.25);
+}
+
+/* Mobile polish */
+@media screen and (max-width: 600px) {
+  .overlay-content {
+    padding: 18px 18px;
+    width: 94vw;
+    max-height: 86vh;
+    border-radius: 14px;
+  }
+
+  #overlay-body h2 {
+    font-size: 14px;
+  }
+
+  #overlay-body p {
+    font-size: 18px;
+  }
+
+  .hint {
+    font-size: 9px;
+    bottom: 12px;
+  }
+
+  .close-btn {
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+  }
 }
 
 /* ==========================================
