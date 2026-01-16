@@ -7,12 +7,19 @@ import { content } from './content';
 const ROOM_WIDTH = 800;
 const ROOM_HEIGHT = 600;
 
-// Set viewport height CSS variable immediately (fixes iOS Safari 100vh issue)
-function setViewportHeight() {
-  const vh = window.visualViewport?.height ?? window.innerHeight;
-  document.documentElement.style.setProperty('--app-height', `${vh}px`);
+// Animation state
+interface AnimationState {
+  stars: { graphics: Graphics; baseAlpha: number; speed: number; phase: number }[];
+  clock: { container: Container; hourHand: Graphics; minuteHand: Graphics; secondHand: Graphics };
+  steam: { particles: Graphics[]; container: Container };
+  dustMotes: { particles: { x: number; y: number; vx: number; vy: number; alpha: number; size: number }[]; graphics: Graphics };
+  lampGlow: { graphics: Graphics; baseAlpha: number };
+  plants: { graphics: Graphics[]; baseRotations: number[] };
+  codeLines: { graphics: Graphics[]; scrollOffset: number };
+  curtains: { left: Graphics; right: Graphics };
 }
-setViewportHeight();
+
+let animState: AnimationState;
 
 // Refined color palette - cozy bedroom vibes
 const COLORS = {
@@ -60,65 +67,37 @@ async function init() {
   const container = document.getElementById('game-container')!;
   container.appendChild(app.canvas);
 
-  // Safari-safe resize function
   function resize() {
-    // Use visualViewport for mobile Safari, with fallbacks
-    let viewportWidth: number;
-    let viewportHeight: number;
-    
-    if (window.visualViewport) {
-      viewportWidth = window.visualViewport.width;
-      viewportHeight = window.visualViewport.height;
-    } else {
-      // Fallback for older browsers
-      viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-      viewportHeight = document.documentElement.clientHeight || window.innerHeight;
-    }
-    
-    // Account for safe areas on notched devices
-    const safeAreaTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top')) || 0;
-    const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')) || 0;
-    const safeAreaLeft = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left')) || 0;
-    const safeAreaRight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right')) || 0;
-    
-    // Adjust for safe areas
-    const availableWidth = viewportWidth - safeAreaLeft - safeAreaRight;
-    const availableHeight = viewportHeight - safeAreaTop - safeAreaBottom;
-    
-    // Calculate scale to fit the room, with a small margin for breathing room
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const scale = Math.min(
-      (availableWidth * 0.98) / ROOM_WIDTH,
-      (availableHeight * 0.95) / ROOM_HEIGHT
+      viewportWidth / ROOM_WIDTH,
+      viewportHeight / ROOM_HEIGHT
     );
-    
     app.canvas.style.width = `${ROOM_WIDTH * scale}px`;
     app.canvas.style.height = `${ROOM_HEIGHT * scale}px`;
-    
-    // Update CSS custom property for viewport height (fixes iOS 100vh bug)
-    document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
   }
   
   resize();
-  
-  // Listen to multiple events for Safari compatibility
   window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', () => {
-    // Delay resize on orientation change for Safari to settle
-    setTimeout(resize, 100);
-    setTimeout(resize, 300);
-  });
-  
-  // Visual viewport resize (important for mobile Safari keyboard, toolbar changes)
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', resize);
-    window.visualViewport.addEventListener('scroll', resize);
-  }
 
   const room = new Container();
   app.stage.addChild(room);
 
+  // Initialize animation state
+  animState = {
+    stars: [],
+    clock: { container: new Container(), hourHand: new Graphics(), minuteHand: new Graphics(), secondHand: new Graphics() },
+    steam: { particles: [], container: new Container() },
+    dustMotes: { particles: [], graphics: new Graphics() },
+    lampGlow: { graphics: new Graphics(), baseAlpha: 0.6 },
+    plants: { graphics: [], baseRotations: [] },
+    codeLines: { graphics: [], scrollOffset: 0 },
+    curtains: { left: new Graphics(), right: new Graphics() },
+  };
+
   // Draw the room
-  drawRoom(room);
+  drawRoom(room, app);
 
   // Interactive elements
   // Awards - centered on upper wall
@@ -134,6 +113,8 @@ async function init() {
   // Study desk with laptop for academics
   const studyDesk = createStudyDesk(50, 300);
   room.addChild(studyDesk);
+  // Add steam container after study desk so steam appears above
+  room.addChild(animState.steam.container);
   makeInteractive(studyDesk, 'academics', app);
 
   // Dev setup - cleaner, everything on desk
@@ -146,6 +127,12 @@ async function init() {
 
   // Add title
   addTitle(room);
+
+  // Add dust motes floating in the lamp light
+  createDustMotes(room, app);
+
+  // Start all animations
+  startAnimations(app);
 
   // Hide loading screen
   document.getElementById('loading')!.classList.add('hidden');
@@ -160,7 +147,7 @@ async function init() {
   document.body.appendChild(hint);
 }
 
-function drawRoom(room: Container) {
+function drawRoom(room: Container, _app: Application) {
   const bg = new Graphics();
   
   // Wall - warm inviting tone with good contrast against dark carpet
@@ -232,28 +219,67 @@ function drawRoom(room: Container) {
   windowEl.circle(133, 108, 8);
   windowEl.fill(0x3a5575);
   
-  // Stars in window
-  windowEl.circle(65, 105, 1.5);
-  windowEl.fill(0xffffee);
-  windowEl.circle(80, 125, 1);
-  windowEl.fill(0xffffee);
-  windowEl.circle(115, 175, 1);
-  windowEl.fill(0xffffee);
+  // Animated stars in window - positioned within the window pane areas
+  // Window panes are at: 50-98, 90-152 (top left), 102-150, 90-152 (top right)
+  // 50-98, 156-218 (bottom left), 102-150, 156-218 (bottom right)
+  const starPositions = [
+    { x: 65, y: 105, size: 2 },
+    { x: 85, y: 130, size: 1.5 },
+    { x: 75, y: 145, size: 1.8 },
+    { x: 60, y: 170, size: 1.5 },
+    { x: 88, y: 195, size: 1.2 },
+    { x: 115, y: 115, size: 1.8 },
+    { x: 135, y: 135, size: 1.5 },
+    { x: 120, y: 175, size: 2 },
+    { x: 140, y: 200, size: 1.3 },
+    { x: 108, y: 195, size: 1.6 },
+  ];
   
-  // Cozy curtains - warm fabric look with folds
-  windowEl.rect(25, 68, 22, 175);
-  windowEl.fill(0x6a5a60); // Warm taupe
-  windowEl.rect(28, 68, 4, 175);
-  windowEl.fill(0x7a6a70); // Fold highlight
-  windowEl.rect(40, 68, 4, 175);
-  windowEl.fill(0x5a4a50); // Fold shadow
+  // Add stars to windowEl so they're part of the window
+  starPositions.forEach((star) => {
+    const starGraphics = new Graphics();
+    // Draw a small cross/sparkle shape for more visible stars
+    starGraphics.circle(star.x, star.y, star.size);
+    starGraphics.fill(0xffffee);
+    // Add sparkle rays
+    starGraphics.rect(star.x - star.size * 1.5, star.y - 0.5, star.size * 3, 1);
+    starGraphics.fill(0xffffee);
+    starGraphics.rect(star.x - 0.5, star.y - star.size * 1.5, 1, star.size * 3);
+    starGraphics.fill(0xffffee);
+    windowEl.addChild(starGraphics);
+    
+    animState.stars.push({
+      graphics: starGraphics,
+      baseAlpha: 1,
+      speed: 2 + Math.random() * 3,
+      phase: Math.random() * Math.PI * 2,
+    });
+  });
   
-  windowEl.rect(153, 68, 22, 175);
-  windowEl.fill(0x6a5a60);
-  windowEl.rect(156, 68, 4, 175);
-  windowEl.fill(0x7a6a70);
-  windowEl.rect(168, 68, 4, 175);
-  windowEl.fill(0x5a4a50);
+  // Cozy curtains - warm fabric look with folds (animated)
+  const leftCurtain = new Graphics();
+  leftCurtain.rect(25, 68, 22, 175);
+  leftCurtain.fill(0x6a5a60);
+  leftCurtain.rect(28, 68, 4, 175);
+  leftCurtain.fill(0x7a6a70);
+  leftCurtain.rect(40, 68, 4, 175);
+  leftCurtain.fill(0x5a4a50);
+  leftCurtain.pivot.set(25, 68);
+  leftCurtain.position.set(25, 68);
+  room.addChild(leftCurtain);
+  animState.curtains.left = leftCurtain;
+  
+  const rightCurtain = new Graphics();
+  rightCurtain.rect(153, 68, 22, 175);
+  rightCurtain.fill(0x6a5a60);
+  rightCurtain.rect(156, 68, 4, 175);
+  rightCurtain.fill(0x7a6a70);
+  rightCurtain.rect(168, 68, 4, 175);
+  rightCurtain.fill(0x5a4a50);
+  rightCurtain.pivot.set(175, 68);
+  rightCurtain.position.set(175, 68);
+  room.addChild(rightCurtain);
+  animState.curtains.right = rightCurtain;
   
   // Curtain rod - warm metal
   windowEl.roundRect(20, 62, 160, 10, 3);
@@ -332,41 +358,62 @@ function drawRoom(room: Container) {
   painting.fill(0x4a5a4a);
   room.addChild(painting);
 
-  // Clock on wall - cozy wooden frame
-  const clock = new Graphics();
+  // Clock on wall - cozy wooden frame with REAL TIME
+  const clockContainer = new Container();
+  clockContainer.x = 600;
+  clockContainer.y = 85;
+  
+  const clockBase = new Graphics();
   // Clock wooden frame
-  clock.circle(600, 85, 28);
-  clock.fill(COLORS.woodMid);
-  clock.circle(600, 85, 25);
-  clock.fill(COLORS.woodLight);
+  clockBase.circle(0, 0, 28);
+  clockBase.fill(COLORS.woodMid);
+  clockBase.circle(0, 0, 25);
+  clockBase.fill(COLORS.woodLight);
   // Clock face
-  clock.circle(600, 85, 22);
-  clock.fill(COLORS.cream);
-  clock.circle(600, 85, 20);
-  clock.stroke({ width: 1, color: COLORS.woodDark });
-  // Clock center
-  clock.circle(600, 85, 3);
-  clock.fill(COLORS.woodDark);
-  
-  // Hour hand pointing to 10
-  clock.poly([600, 85, 592, 77, 594, 75, 602, 83]);
-  clock.fill(COLORS.woodDark);
-  
-  // Minute hand pointing to 2
-  clock.poly([600, 85, 610, 71, 612, 73, 602, 87]);
-  clock.fill(0x5a5a6a);
-  
+  clockBase.circle(0, 0, 22);
+  clockBase.fill(COLORS.cream);
+  clockBase.circle(0, 0, 20);
+  clockBase.stroke({ width: 1, color: COLORS.woodDark });
   // Hour markers (simple dots)
-  clock.circle(600, 66, 2);
-  clock.fill(COLORS.woodDark);
-  clock.circle(600, 104, 2);
-  clock.fill(COLORS.woodDark);
-  clock.circle(581, 85, 2);
-  clock.fill(COLORS.woodDark);
-  clock.circle(619, 85, 2);
-  clock.fill(COLORS.woodDark);
+  clockBase.circle(0, -19, 2);
+  clockBase.fill(COLORS.woodDark);
+  clockBase.circle(0, 19, 2);
+  clockBase.fill(COLORS.woodDark);
+  clockBase.circle(-19, 0, 2);
+  clockBase.fill(COLORS.woodDark);
+  clockBase.circle(19, 0, 2);
+  clockBase.fill(COLORS.woodDark);
+  clockContainer.addChild(clockBase);
   
-  room.addChild(clock);
+  // Hour hand
+  const hourHand = new Graphics();
+  hourHand.rect(-2, -12, 4, 14);
+  hourHand.fill(COLORS.woodDark);
+  clockContainer.addChild(hourHand);
+  animState.clock.hourHand = hourHand;
+  
+  // Minute hand
+  const minuteHand = new Graphics();
+  minuteHand.rect(-1.5, -16, 3, 18);
+  minuteHand.fill(0x5a5a6a);
+  clockContainer.addChild(minuteHand);
+  animState.clock.minuteHand = minuteHand;
+  
+  // Second hand
+  const secondHand = new Graphics();
+  secondHand.rect(-0.5, -17, 1, 19);
+  secondHand.fill(0xc54a4a);
+  clockContainer.addChild(secondHand);
+  animState.clock.secondHand = secondHand;
+  
+  // Clock center cap
+  const clockCenter = new Graphics();
+  clockCenter.circle(0, 0, 3);
+  clockCenter.fill(COLORS.woodDark);
+  clockContainer.addChild(clockCenter);
+  
+  animState.clock.container = clockContainer;
+  room.addChild(clockContainer);
 
   // Large cozy area rug - makes the room feel homely
   const rug = new Graphics();
@@ -411,10 +458,17 @@ function drawRoom(room: Container) {
   // Lamp shade inner glow
   lamp.poly([742, 318, 778, 318, 772, 275, 748, 275]);
   lamp.fill(0xeeddbb);
-  // Light glow effect under shade
-  lamp.ellipse(760, 322, 18, 4);
-  lamp.fill(0xffeecc);
   room.addChild(lamp);
+  
+  // Animated lamp glow effect
+  const lampGlow = new Graphics();
+  lampGlow.ellipse(760, 322, 18, 4);
+  lampGlow.fill(0xffeecc);
+  // Add a larger ambient glow
+  lampGlow.ellipse(760, 400, 60, 80);
+  lampGlow.fill({ color: 0xffeecc, alpha: 0.08 });
+  room.addChild(lampGlow);
+  animState.lampGlow.graphics = lampGlow;
 }
 
 function createAwards(x: number, y: number): Container {
@@ -603,18 +657,40 @@ function createStudyDesk(x: number, y: number): Container {
   desk.roundRect(170, 66, 10, 3, 1);
   desk.fill(0x4a4a5a); // Pen clip
   
-  // Cozy coffee mug with steam
+  // Cozy coffee mug with animated steam
   desk.roundRect(148, 60, 22, 20, 4);
   desk.fill(0x7a6a5a); // Warm ceramic
   desk.roundRect(168, 66, 8, 10, 4);
   desk.fill(0x7a6a5a); // Handle
   desk.ellipse(159, 62, 10, 4);
   desk.fill(0x5a4030); // Coffee
-  // Steam lines
-  desk.rect(155, 50, 2, 8);
-  desk.fill(0xcccccc);
-  desk.rect(161, 48, 2, 10);
-  desk.fill(0xcccccc);
+  
+  container.addChild(desk);
+  
+  // Create animated steam particles - positioned relative to the container
+  // Coffee mug is at ~159, 60 relative to the desk, which is at x, y
+  // Steam should rise from around y=55 (just above the mug)
+  const steamContainer = new Container();
+  // Don't set position - particles will use coordinates relative to container's parent
+  
+  // Store initial positions for steam particles to reset properly
+  const steamBaseX = x + 159; // Absolute X of mug center
+  const steamBaseY = y + 52;  // Absolute Y just above mug
+  
+  for (let i = 0; i < 5; i++) {
+    const steam = new Graphics();
+    const startX = steamBaseX + (Math.random() - 0.5) * 6;
+    const startY = steamBaseY - i * 6;
+    steam.circle(startX, startY, 2 + Math.random());
+    steam.fill({ color: 0xffffff, alpha: 0.25 });
+    steamContainer.addChild(steam);
+    // Store base position on the graphics object for reset
+    (steam as any)._baseX = steamBaseX;
+    (steam as any)._baseY = steamBaseY;
+    (steam as any)._offsetY = i * 6;
+    animState.steam.particles.push(steam);
+  }
+  animState.steam.container = steamContainer;
   
   // Cute pencil cup - rounded
   desk.roundRect(12, 58, 26, 22, 6);
@@ -630,15 +706,29 @@ function createStudyDesk(x: number, y: number): Container {
   desk.rect(32, 45, 4, 17);
   desk.fill(0x8a5a5a); // Red pen
   
-  // Small desk plant
-  desk.roundRect(0, 62, 18, 18, 4);
-  desk.fill(0x6a5545);
-  desk.circle(9, 55, 10);
-  desk.fill(0x4a7a4a);
-  desk.circle(5, 58, 6);
-  desk.fill(0x5a8a5a);
+  // Small desk plant - animated leaves
+  const plantPot = new Graphics();
+  plantPot.roundRect(0, 62, 18, 18, 4);
+  plantPot.fill(0x6a5545);
+  container.addChild(plantPot);
   
-  container.addChild(desk);
+  const plantLeaf1 = new Graphics();
+  plantLeaf1.circle(9, 55, 10);
+  plantLeaf1.fill(0x4a7a4a);
+  plantLeaf1.pivot.set(9, 62);
+  plantLeaf1.position.set(9, 62);
+  container.addChild(plantLeaf1);
+  animState.plants.graphics.push(plantLeaf1);
+  animState.plants.baseRotations.push(0);
+  
+  const plantLeaf2 = new Graphics();
+  plantLeaf2.circle(5, 58, 6);
+  plantLeaf2.fill(0x5a8a5a);
+  plantLeaf2.pivot.set(9, 62);
+  plantLeaf2.position.set(9, 62);
+  container.addChild(plantLeaf2);
+  animState.plants.graphics.push(plantLeaf2);
+  animState.plants.baseRotations.push(0);
   
   return container;
 }
@@ -679,71 +769,122 @@ function createDevSetup(x: number, y: number): Container {
   setup.roundRect(64, 14, 132, 80, 4);
   setup.fill(COLORS.screenDark);
   
-  // Code on screen - syntax highlighted
-  const codeLines = [
-    { x: 72, w: 35, color: 0x61afef },
-    { x: 72, w: 55, color: 0x98c379 },
-    { x: 72, w: 40, color: 0xe5c07b },
-    { x: 72, w: 65, color: 0xc678dd },
-    { x: 72, w: 50, color: 0x56b6c2 },
-    { x: 72, w: 60, color: 0x61afef },
-    { x: 72, w: 30, color: 0xe06c75 },
-    { x: 72, w: 70, color: 0x98c379 },
-    { x: 72, w: 45, color: 0x61afef },
-    { x: 72, w: 55, color: 0xc678dd },
-  ];
+  container.addChild(setup);
   
-  codeLines.forEach((line, i) => {
-    setup.rect(line.x, 22 + i * 7, line.w, 4);
-    setup.fill(line.color);
-  });
+  // Create animated code lines on screen (separate container for animation)
+  const codeContainer = new Container();
+  codeContainer.x = 0;
+  codeContainer.y = 0;
+  
+  // Create a mask for the screen area
+  const screenMask = new Graphics();
+  screenMask.roundRect(64, 14, 132, 80, 4);
+  screenMask.fill(0xffffff);
+  codeContainer.mask = screenMask;
+  container.addChild(screenMask);
+  
+  const codeColors = [0x61afef, 0x98c379, 0xe5c07b, 0xc678dd, 0x56b6c2, 0xe06c75];
+  
+  // Create more code lines for scrolling effect - store line info for cursor
+  const lineData: { x: number; width: number; y: number }[] = [];
+  for (let i = 0; i < 10; i++) {
+    const codeLine = new Graphics();
+    const width = 30 + Math.random() * 45;
+    const indent = Math.random() > 0.7 ? 12 : (Math.random() > 0.5 ? 6 : 0);
+    const lineX = 72 + indent;
+    const lineY = 20 + i * 7;
+    codeLine.rect(lineX, lineY, width, 4);
+    codeLine.fill(codeColors[i % codeColors.length]);
+    codeContainer.addChild(codeLine);
+    animState.codeLines.graphics.push(codeLine);
+    lineData.push({ x: lineX, width, y: lineY });
+  }
+  
+  // Blinking cursor - position at the end of a middle line (line 4)
+  const cursorLine = lineData[4];
+  const cursor = new Graphics();
+  cursor.rect(cursorLine.x + cursorLine.width + 2, cursorLine.y - 1, 2, 6);
+  cursor.fill(0xffffff);
+  codeContainer.addChild(cursor);
+  animState.codeLines.graphics.push(cursor); // Add cursor to be animated
+  
+  container.addChild(codeContainer);
+  
+  // Rest of the setup drawn on a new graphics
+  const setupRest = new Graphics();
   
   // Keyboard on desk - mechanical style
-  setup.roundRect(78, 133, 104, 22, 4);
-  setup.fill(0x3a3a4a);
+  setupRest.roundRect(78, 133, 104, 22, 4);
+  setupRest.fill(0x3a3a4a);
   // Key rows with rounded keys
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 12; col++) {
-      setup.roundRect(84 + col * 8, 137 + row * 6, 6, 5, 1);
-      setup.fill(0x5a5a6a);
+      setupRest.roundRect(84 + col * 8, 137 + row * 6, 6, 5, 1);
+      setupRest.fill(0x5a5a6a);
     }
   }
   
   // Mouse - ergonomic shape
-  setup.roundRect(196, 136, 22, 16, 6);
-  setup.fill(0x3a3a4a);
-  setup.roundRect(204, 138, 6, 6, 2);
-  setup.fill(0x4a4a5a);
+  setupRest.roundRect(196, 136, 22, 16, 6);
+  setupRest.fill(0x3a3a4a);
+  setupRest.roundRect(204, 138, 6, 6, 2);
+  setupRest.fill(0x4a4a5a);
   
-  // Cute desk plant in nice pot
-  setup.roundRect(16, 106, 28, 24, 6);
-  setup.fill(0x7a6050); // Terracotta pot
-  setup.roundRect(18, 108, 24, 4, 2);
-  setup.fill(0x8a7060); // Pot rim
-  setup.ellipse(30, 96, 16, 18);
-  setup.fill(0x4a7a4a);
-  setup.ellipse(23, 100, 10, 12);
-  setup.fill(0x5a8a5a);
-  setup.ellipse(37, 98, 10, 12);
-  setup.fill(0x5a8a5a);
+  // Cute desk plant in nice pot - animated
+  setupRest.roundRect(16, 106, 28, 24, 6);
+  setupRest.fill(0x7a6050); // Terracotta pot
+  setupRest.roundRect(18, 108, 24, 4, 2);
+  setupRest.fill(0x8a7060); // Pot rim
+  container.addChild(setupRest);
+  
+  // Animated plant leaves
+  const devPlant1 = new Graphics();
+  devPlant1.ellipse(30, 96, 16, 18);
+  devPlant1.fill(0x4a7a4a);
+  devPlant1.pivot.set(30, 106);
+  devPlant1.position.set(30, 106);
+  container.addChild(devPlant1);
+  animState.plants.graphics.push(devPlant1);
+  animState.plants.baseRotations.push(0);
+  
+  const devPlant2 = new Graphics();
+  devPlant2.ellipse(23, 100, 10, 12);
+  devPlant2.fill(0x5a8a5a);
+  devPlant2.pivot.set(30, 106);
+  devPlant2.position.set(30, 106);
+  container.addChild(devPlant2);
+  animState.plants.graphics.push(devPlant2);
+  animState.plants.baseRotations.push(0);
+  
+  const devPlant3 = new Graphics();
+  devPlant3.ellipse(37, 98, 10, 12);
+  devPlant3.fill(0x5a8a5a);
+  devPlant3.pivot.set(30, 106);
+  devPlant3.position.set(30, 106);
+  container.addChild(devPlant3);
+  animState.plants.graphics.push(devPlant3);
+  animState.plants.baseRotations.push(0);
+  
+  // Water bottle and headphones (static)
+  const staticItems = new Graphics();
   
   // Water bottle - sporty style
-  setup.roundRect(226, 102, 18, 28, 6);
-  setup.fill(0x4a7a8a);
-  setup.roundRect(228, 96, 14, 10, 4);
-  setup.fill(0x3a3a4a); // Cap
-  setup.rect(230, 110, 12, 4);
-  setup.fill(0x6a9aba); // Label stripe
+  staticItems.roundRect(226, 102, 18, 28, 6);
+  staticItems.fill(0x4a7a8a);
+  staticItems.roundRect(228, 96, 14, 10, 4);
+  staticItems.fill(0x3a3a4a); // Cap
+  staticItems.rect(230, 110, 12, 4);
+  staticItems.fill(0x6a9aba); // Label stripe
   
   // Headphones hanging on monitor (cozy touch)
-  setup.roundRect(190, 20, 22, 26, 8);
-  setup.fill(0x4a4a5a);
-  setup.roundRect(192, 22, 18, 22, 6);
-  setup.fill(0x5a5a6a);
-  setup.roundRect(194, 8, 14, 14, 4);
-  setup.fill(0x4a4a5a); // Headband
+  staticItems.roundRect(190, 20, 22, 26, 8);
+  staticItems.fill(0x4a4a5a);
+  staticItems.roundRect(192, 22, 18, 22, 6);
+  staticItems.fill(0x5a5a6a);
+  staticItems.roundRect(194, 8, 14, 14, 4);
+  staticItems.fill(0x4a4a5a); // Headband
   
-  container.addChild(setup);
+  container.addChild(staticItems);
   
   return container;
 }
@@ -875,6 +1016,129 @@ function addTitle(room: Container) {
   subtitle.x = ROOM_WIDTH / 2;
   subtitle.y = 32;
   room.addChild(subtitle);
+}
+
+function createDustMotes(room: Container, _app: Application) {
+  // Create dust particles floating in lamp light - reduced count for subtlety
+  for (let i = 0; i < 10; i++) {
+    animState.dustMotes.particles.push({
+      x: 700 + Math.random() * 70,
+      y: 300 + Math.random() * 150,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: -0.05 - Math.random() * 0.1,
+      alpha: 0.15 + Math.random() * 0.15,
+      size: 0.8 + Math.random() * 1,
+    });
+  }
+  
+  animState.dustMotes.graphics = new Graphics();
+  room.addChild(animState.dustMotes.graphics);
+}
+
+function startAnimations(app: Application) {
+  let time = 0;
+  
+  app.ticker.add((ticker) => {
+    time += ticker.deltaTime * 0.016; // Convert to seconds approximately
+    
+    // === CLOCK ANIMATION (Real time) ===
+    const now = new Date();
+    const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+    const minutes = now.getMinutes() + seconds / 60;
+    const hours = (now.getHours() % 12) + minutes / 60;
+    
+    animState.clock.secondHand.rotation = (seconds / 60) * Math.PI * 2;
+    animState.clock.minuteHand.rotation = (minutes / 60) * Math.PI * 2;
+    animState.clock.hourHand.rotation = (hours / 12) * Math.PI * 2;
+    
+    // === STAR TWINKLING ===
+    animState.stars.forEach((star) => {
+      star.phase += star.speed * 0.01;
+      const twinkle = Math.sin(star.phase) * 0.5 + 0.5;
+      // Only change brightness subtly
+      star.graphics.alpha = 0.65 + twinkle * 0.3;
+    });
+    
+    // === CURTAIN SWAY ===
+    const curtainSway = Math.sin(time * 0.8) * 0.025;
+    animState.curtains.left.rotation = curtainSway;
+    animState.curtains.right.rotation = -curtainSway * 0.8; // Slightly different for natural look
+    
+    // === LAMP GLOW PULSE ===
+    const glowPulse = Math.sin(time * 1.5) * 0.35 + 0.65;
+    animState.lampGlow.graphics.alpha = glowPulse;
+    
+    // === STEAM ANIMATION ===
+    animState.steam.particles.forEach((steam, i) => {
+      const baseX = (steam as any)._baseX || 209; // fallback
+      const baseY = (steam as any)._baseY || 352;
+      const offsetY = (steam as any)._offsetY || 0;
+      
+      // Calculate position based on time
+      const progress = ((time * 0.5 + i * 0.3) % 2) / 2; // 0 to 1 cycle
+      const riseAmount = progress * 25; // Rise up to 25 pixels
+      const wobble = Math.sin(time * 3 + i * 1.5) * 3; // Side-to-side wobble
+      const fadeOut = 1 - progress; // Fade as it rises
+      
+      steam.clear();
+      const size = 1.5 + (1 - progress) * 1.5; // Shrink as it rises
+      steam.circle(baseX + wobble, baseY - riseAmount - offsetY * 0.3, size);
+      steam.fill({ color: 0xffffff, alpha: fadeOut * 0.3 });
+    });
+    
+    // === PLANT SWAY ===
+    animState.plants.graphics.forEach((plant, i) => {
+      const swayAmount = 0.06 + (i % 3) * 0.02;
+      const swaySpeed = 0.8 + (i % 2) * 0.2;
+      plant.rotation = Math.sin(time * swaySpeed + i * 0.7) * swayAmount;
+    });
+    
+    // === CODE SCROLLING & CURSOR BLINK ===
+    animState.codeLines.scrollOffset += 0.02;
+    
+    // Move code lines up slowly and wrap around
+    const codeLineCount = animState.codeLines.graphics.length - 1; // -1 for cursor
+    animState.codeLines.graphics.forEach((line, i) => {
+      if (i < codeLineCount) {
+        // Code lines scroll
+        line.y = -Math.sin(animState.codeLines.scrollOffset * 0.5 + i * 0.1) * 0.5;
+      } else {
+        // Cursor blinks
+        line.alpha = Math.sin(time * 6) > 0 ? 1 : 0;
+      }
+    });
+    
+    // === DUST MOTES ===
+    animState.dustMotes.graphics.clear();
+    animState.dustMotes.particles.forEach((mote) => {
+      // Update position
+      mote.x += mote.vx + Math.sin(time * 0.5 + mote.y * 0.01) * 0.1;
+      mote.y += mote.vy;
+      
+      // Gentle floating
+      mote.vx += (Math.random() - 0.5) * 0.02;
+      mote.vy += (Math.random() - 0.5) * 0.01;
+      
+      // Dampen velocity
+      mote.vx *= 0.99;
+      mote.vy *= 0.99;
+      
+      // Reset if out of bounds
+      if (mote.y < 260 || mote.y > 500 || mote.x < 660 || mote.x > 790) {
+        mote.x = 700 + Math.random() * 60;
+        mote.y = 350 + Math.random() * 100;
+        mote.vx = (Math.random() - 0.5) * 0.2;
+        mote.vy = -0.1 - Math.random() * 0.15;
+      }
+      
+      // Twinkle effect
+      const twinkle = Math.sin(time * 3 + mote.x + mote.y) * 0.3 + 0.7;
+      
+      // Draw mote
+      animState.dustMotes.graphics.circle(mote.x, mote.y, mote.size);
+      animState.dustMotes.graphics.fill({ color: 0xffffee, alpha: mote.alpha * twinkle });
+    });
+  });
 }
 
 init().catch(console.error);
