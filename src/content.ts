@@ -13,7 +13,7 @@ export const content: Record<string, ContentItem> = {
   // AWARDS & HONORS
   // ==================
   awards: {
-    title: "🏆 Awards & Honors",
+    title: "Awards & Honors",
     html: `
       <h2>Awards & Honors</h2>
       <ul>
@@ -24,7 +24,7 @@ export const content: Record<string, ContentItem> = {
         <li><span class="highlight">Outstanding CS Student</span> — School Award, 2024</li>
       </ul>
       <p style="margin-top: 24px; color: #666; font-size: 14px; font-style: italic;">
-        → Edit src/content.ts to add your own awards!
+        Edit src/content.ts to add your own awards
       </p>
     `
   },
@@ -33,7 +33,7 @@ export const content: Record<string, ContentItem> = {
   // ACADEMICS (SAT, GPA)
   // ==================
   academics: {
-    title: "📚 Academics",
+    title: "Academics",
     html: `
       <h2>Academic Profile</h2>
       <div class="stat">
@@ -72,10 +72,10 @@ export const content: Record<string, ContentItem> = {
   // SENIOR YEAR SCHEDULE
   // ==================
   schedule: {
-    title: "📅 Senior Year Schedule",
+    title: "Senior Year Schedule",
     html: `
       <h2>Senior Year Classes</h2>
-      <h3>All AP Courseload 💪</h3>
+      <h3>Full AP Courseload</h3>
       <ul>
         <li><span class="highlight">AP Computer Science A</span></li>
         <li><span class="highlight">AP Calculus BC</span></li>
@@ -85,7 +85,7 @@ export const content: Record<string, ContentItem> = {
         <li><span class="highlight">AP Statistics</span></li>
       </ul>
       <p style="margin-top: 20px; color: #4ade80; font-size: 18px;">
-        ✓ Most rigorous schedule available at my school
+        Most rigorous schedule available at my school
       </p>
       <p style="color: #888; font-size: 14px;">
         Taking 6 AP classes senior year demonstrates my commitment to academic excellence and my readiness for college-level coursework.
@@ -97,11 +97,11 @@ export const content: Record<string, ContentItem> = {
   // PROJECTS & EXTRACURRICULARS
   // ==================
   projects: {
-    title: "💻 Projects & Extracurriculars",
+    title: "Projects & Extracurriculars",
     html: `
       <h2>Developer Setup</h2>
       
-      <h3>🚀 Technical Projects</h3>
+      <h3>Technical Projects</h3>
       <ul>
         <li><span class="highlight">AI Study Assistant</span> — Built with Python, OpenAI API, and React. Helps students create personalized study plans.</li>
         <li><span class="highlight">School Event Platform</span> — Full-stack app serving 500+ students daily. Built with Next.js and PostgreSQL.</li>
@@ -109,7 +109,7 @@ export const content: Record<string, ContentItem> = {
         <li><span class="highlight">Open Source</span> — Active GitHub contributor with 50+ contributions.</li>
       </ul>
       
-      <h3>🎯 Leadership & Activities</h3>
+      <h3>Leadership & Activities</h3>
       <ul>
         <li><span class="highlight">CS Club President</span> — Founded and lead school's programming club (30+ members)</li>
         <li><span class="highlight">Hackathon Organizer</span> — Organized 3 school-wide hackathons</li>
@@ -117,7 +117,7 @@ export const content: Record<string, ContentItem> = {
         <li><span class="highlight">Volunteer Tutor</span> — 100+ hours tutoring STEM subjects</li>
       </ul>
       
-      <h3>🔗 Links</h3>
+      <h3>Links</h3>
       <p style="font-size: 18px;">
         <a href="https://github.com/yourusername" target="_blank" style="color: #61afef;">GitHub</a> · 
         <a href="https://linkedin.com/in/yourname" target="_blank" style="color: #61afef;">LinkedIn</a> · 
