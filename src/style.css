@@ -80,17 +80,20 @@ body {
 
 .overlay-content {
   background: linear-gradient(145deg, #2d2d44 0%, #1a1a2e 100%);
-  border: 4px solid #4a4a6a;
-  border-radius: 8px;
+  border: 3px solid transparent;
+  border-radius: 12px;
   padding: 32px 40px;
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
   overflow-y: auto;
   position: relative;
+  background-clip: padding-box;
   box-shadow: 
-    0 0 0 2px #1a1a2e,
-    0 0 40px rgba(100, 100, 200, 0.3),
+    0 0 0 3px rgba(212, 168, 84, 0.6),
+    0 0 0 6px rgba(166, 124, 61, 0.3),
+    0 0 30px rgba(212, 168, 84, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.4),
     inset 0 0 60px rgba(0, 0, 0, 0.3);
   transform: scale(0.9);
   transition: transform 0.3s ease;
@@ -220,5 +223,87 @@ body {
   color: rgba(255,255,255,0.4);
   text-align: center;
   pointer-events: none;
-  z-index: 100;
+}
+
+/* Mobile portrait rotation message */
+.rotate-device {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #1a1a2e;
+  z-index: 2000;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+}
+
+.rotate-device-icon {
+  width: 80px;
+  height: 80px;
+  border: 4px solid #888;
+  border-radius: 12px;
+  position: relative;
+  animation: rotatePhone 2s ease-in-out infinite;
+}
+
+.rotate-device-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 3px solid #666;
+  border-radius: 50%;
+}
+
+.rotate-device-icon::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 4px;
+  background: #666;
+  border-radius: 2px;
+}
+
+@keyframes rotatePhone {
+  0%, 30% { transform: rotate(0deg); }
+  50%, 80% { transform: rotate(90deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.rotate-device-text {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  color: #ccc;
+  text-align: center;
+  line-height: 1.8;
+}
+
+.rotate-device-subtext {
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: #888;
+  text-align: center;
+}
+
+/* Show rotate message on mobile portrait only */
+@media screen and (max-width: 600px) and (orientation: portrait) {
+  .rotate-device {
+    display: flex;
+  }
+  
+  #game-container,
+  .hint {
+    display: none;
+  }
 }

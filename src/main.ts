@@ -7,23 +7,23 @@ import { content } from './content';
 const ROOM_WIDTH = 800;
 const ROOM_HEIGHT = 600;
 
-// Refined color palette - cozy evening room
+// Refined color palette - cozy bedroom vibes
 const COLORS = {
-  // Walls - warm evening tones
-  wallLight: 0x4a4a6a,
-  wallDark: 0x3a3a5a,
-  wallAccent: 0x2d2d44,
+  // Walls - warm cozy tones (like a real bedroom)
+  wallLight: 0x6a6878,
+  wallDark: 0x5a5868,
+  wallAccent: 0x4d4d5d,
   
-  // Floor - rich wood
-  floorBase: 0x5c4332,
-  floorLight: 0x6b5040,
-  floorDark: 0x4a3528,
-  floorGap: 0x3a2718,
+  // Carpet - rich dark blue-grey for contrast
+  carpetBase: 0x2a2a3a,
+  carpetLight: 0x353545,
+  carpetDark: 0x222230,
+  carpetFiber: 0x303042,
   
-  // Furniture - warm wood tones
-  woodLight: 0x9a8060,
-  woodMid: 0x7a6050,
-  woodDark: 0x5a4535,
+  // Furniture - warm natural wood tones
+  woodLight: 0xa08a70,
+  woodMid: 0x8a7560,
+  woodDark: 0x6a5545,
   
   // Accents
   gold: 0xd4a854,
@@ -114,198 +114,258 @@ async function init() {
 function drawRoom(room: Container) {
   const bg = new Graphics();
   
-  // Wall - clean single color, no borders
+  // Wall - warm inviting tone with good contrast against dark carpet
   bg.rect(0, 0, ROOM_WIDTH, 420);
-  bg.fill(0x4a4a5c); // Warm slate
+  bg.fill(0x706878); // Warmer mauve-grey
   
-  // Baseboard only
-  bg.rect(0, 410, ROOM_WIDTH, 12);
-  bg.fill(0x3a3030);
-  bg.rect(0, 410, ROOM_WIDTH, 2);
-  bg.fill(0x5a5050);
-  
-  // Floor
-  bg.rect(0, 422, ROOM_WIDTH, 180);
-  bg.fill(COLORS.floorBase);
-  
-  // Floor planks - more refined pattern
-  for (let y = 422; y < 600; y += 35) {
-    const rowOffset = ((y - 422) / 35) % 2 === 0 ? 0 : 60;
-    for (let x = -60 + rowOffset; x < ROOM_WIDTH + 60; x += 120) {
-      // Main plank
-      bg.rect(x, y, 118, 33);
-      bg.fill(COLORS.floorLight);
-      // Plank edge highlight
-      bg.rect(x, y, 118, 2);
-      bg.fill(COLORS.floorBase);
-      // Plank gap
-      bg.rect(x + 118, y, 2, 33);
-      bg.fill(COLORS.floorGap);
-    }
-    // Horizontal gap between rows
-    bg.rect(0, y + 33, ROOM_WIDTH, 2);
-    bg.fill(COLORS.floorGap);
+  // Subtle wall texture stripes for coziness
+  for (let i = 0; i < 8; i++) {
+    bg.rect(0, 50 + i * 50, ROOM_WIDTH, 2);
+    bg.fill(0x686070);
   }
+  
+  // Baseboard - warm wood tone
+  bg.rect(0, 408, ROOM_WIDTH, 14);
+  bg.fill(0x5a4a40);
+  bg.rect(0, 408, ROOM_WIDTH, 3);
+  bg.fill(0x6a5a50);
+  
+  // Cozy carpet floor
+  bg.rect(0, 422, ROOM_WIDTH, 180);
+  bg.fill(COLORS.carpetBase);
+  
+  // Fuzzy carpet texture - soft fiber effect
+  for (let y = 424; y < 600; y += 4) {
+    for (let x = 0; x < ROOM_WIDTH; x += 6) {
+      const shade = Math.random() > 0.5 ? COLORS.carpetLight : COLORS.carpetDark;
+      const fiberShade = Math.random() > 0.7 ? COLORS.carpetFiber : shade;
+      bg.rect(x + (y % 8 === 0 ? 2 : 0), y, 4, 3);
+      bg.fill(fiberShade);
+    }
+  }
+  
+  // Carpet edge/shadow near baseboard
+  bg.rect(0, 422, ROOM_WIDTH, 4);
+  bg.fill(0x3a3a4a);
   
   room.addChild(bg);
 
-  // Window - properly proportioned
+  // Window - cozy bedroom style
   const windowEl = new Graphics();
   
-  // Window outer frame
-  windowEl.rect(40, 80, 120, 150);
+  // Window outer frame - warm wood
+  windowEl.roundRect(38, 78, 124, 154, 4);
   windowEl.fill(COLORS.woodDark);
   
   // Window inner frame
-  windowEl.rect(48, 88, 104, 134);
+  windowEl.roundRect(46, 86, 108, 138, 2);
   windowEl.fill(COLORS.woodMid);
   
-  // Window panes - evening sky gradient
-  windowEl.rect(52, 92, 46, 60);
-  windowEl.fill(0x4a6a8a); // Evening blue
-  windowEl.rect(102, 92, 46, 60);
-  windowEl.fill(0x4a6a8a);
-  windowEl.rect(52, 156, 46, 60);
-  windowEl.fill(0x3a5a7a); // Darker bottom
-  windowEl.rect(102, 156, 46, 60);
-  windowEl.fill(0x3a5a7a);
+  // Window panes - evening sky with warm tones
+  windowEl.rect(50, 90, 48, 62);
+  windowEl.fill(0x3a5575); // Deep evening blue
+  windowEl.rect(102, 90, 48, 62);
+  windowEl.fill(0x3a5575);
+  windowEl.rect(50, 156, 48, 62);
+  windowEl.fill(0x2a4565); // Darker bottom
+  windowEl.rect(102, 156, 48, 62);
+  windowEl.fill(0x2a4565);
   
   // Window cross
-  windowEl.rect(98, 92, 4, 124);
+  windowEl.rect(98, 90, 4, 128);
   windowEl.fill(COLORS.woodMid);
-  windowEl.rect(52, 152, 96, 4);
+  windowEl.rect(50, 152, 100, 4);
   windowEl.fill(COLORS.woodMid);
+  
+  // Moon in window
+  windowEl.circle(130, 110, 10);
+  windowEl.fill(0xeeeedd);
+  windowEl.circle(133, 108, 8);
+  windowEl.fill(0x3a5575);
   
   // Stars in window
-  windowEl.circle(70, 105, 1);
-  windowEl.fill(0xffffff);
-  windowEl.circle(130, 115, 1);
-  windowEl.fill(0xffffff);
-  windowEl.circle(85, 125, 1);
-  windowEl.fill(0xffffff);
+  windowEl.circle(65, 105, 1.5);
+  windowEl.fill(0xffffee);
+  windowEl.circle(80, 125, 1);
+  windowEl.fill(0xffffee);
+  windowEl.circle(115, 175, 1);
+  windowEl.fill(0xffffee);
   
-  // Curtains - simple and clean
-  windowEl.rect(30, 70, 18, 170);
-  windowEl.fill(0x6a4a5a); // Muted burgundy
-  windowEl.rect(152, 70, 18, 170);
-  windowEl.fill(0x6a4a5a);
+  // Cozy curtains - warm fabric look with folds
+  windowEl.rect(25, 68, 22, 175);
+  windowEl.fill(0x6a5a60); // Warm taupe
+  windowEl.rect(28, 68, 4, 175);
+  windowEl.fill(0x7a6a70); // Fold highlight
+  windowEl.rect(40, 68, 4, 175);
+  windowEl.fill(0x5a4a50); // Fold shadow
   
-  // Curtain rod
-  windowEl.rect(25, 65, 150, 8);
-  windowEl.fill(COLORS.woodDark);
-  windowEl.circle(25, 69, 6);
-  windowEl.fill(COLORS.woodDark);
-  windowEl.circle(175, 69, 6);
-  windowEl.fill(COLORS.woodDark);
+  windowEl.rect(153, 68, 22, 175);
+  windowEl.fill(0x6a5a60);
+  windowEl.rect(156, 68, 4, 175);
+  windowEl.fill(0x7a6a70);
+  windowEl.rect(168, 68, 4, 175);
+  windowEl.fill(0x5a4a50);
+  
+  // Curtain rod - warm metal
+  windowEl.roundRect(20, 62, 160, 10, 3);
+  windowEl.fill(0x7a6a5a);
+  windowEl.circle(20, 67, 7);
+  windowEl.fill(0x8a7a6a);
+  windowEl.circle(180, 67, 7);
+  windowEl.fill(0x8a7a6a);
   
   room.addChild(windowEl);
 
-  // Bookshelf between window and awards
+  // Cozy bookshelf between window and awards
   const shelf = new Graphics();
   
-  // Shelf brackets
-  shelf.rect(220, 150, 8, 20);
+  // Shelf brackets - rounded for softer look
+  shelf.roundRect(218, 148, 10, 22, 2);
   shelf.fill(COLORS.woodDark);
-  shelf.rect(300, 150, 8, 20);
+  shelf.roundRect(298, 148, 10, 22, 2);
   shelf.fill(COLORS.woodDark);
   
-  // Shelf surface
-  shelf.rect(215, 145, 100, 8);
+  // Shelf surface - with rounded edges
+  shelf.roundRect(213, 143, 104, 10, 3);
   shelf.fill(COLORS.woodMid);
-  shelf.rect(215, 145, 100, 2);
+  shelf.rect(215, 143, 100, 3);
   shelf.fill(COLORS.woodLight);
   
-  // Books - varied heights and colors
+  // Books - varied heights and warm colors
   const books = [
-    { x: 220, w: 10, h: 28, color: 0x8b4513 },
-    { x: 232, w: 8, h: 24, color: 0x2e5a4a },
-    { x: 242, w: 12, h: 30, color: 0x5a3a6a },
-    { x: 256, w: 8, h: 22, color: 0x2a4a6a },
-    { x: 266, w: 10, h: 26, color: 0x6a5a3a },
-    { x: 278, w: 8, h: 24, color: 0x4a2a2a },
-    { x: 288, w: 12, h: 28, color: 0x3a5a5a },
+    { x: 220, w: 10, h: 28, color: 0x7a5a4a },
+    { x: 232, w: 9, h: 24, color: 0x4a6a5a },
+    { x: 243, w: 12, h: 30, color: 0x5a4a6a },
+    { x: 257, w: 8, h: 22, color: 0x4a5a6a },
+    { x: 267, w: 10, h: 26, color: 0x6a5a4a },
+    { x: 279, w: 8, h: 24, color: 0x5a4a4a },
+    { x: 289, w: 12, h: 28, color: 0x4a5a5a },
   ];
   
   books.forEach(book => {
-    shelf.rect(book.x, 145 - book.h, book.w, book.h);
+    shelf.roundRect(book.x, 143 - book.h, book.w, book.h, 1);
     shelf.fill(book.color);
     // Spine detail
-    shelf.rect(book.x + 2, 145 - book.h + 4, 1, book.h - 8);
-    shelf.fill(0xffffff);
+    shelf.rect(book.x + 3, 143 - book.h + 5, 1, book.h - 10);
+    shelf.fill(0xddddcc);
   });
+  
+  // Small decorative item on shelf - little plant
+  shelf.roundRect(302, 128, 12, 15, 2);
+  shelf.fill(0x6a5545);
+  shelf.circle(308, 122, 8);
+  shelf.fill(0x4a7a4a);
   
   room.addChild(shelf);
 
-  // Framed painting - right side wall, lower to balance
+  // Framed painting - nicely centered on right wall area
   const painting = new Graphics();
   // Frame shadow
-  painting.rect(702, 192, 75, 60);
+  painting.rect(694, 82, 80, 65);
   painting.fill(0x2a2a3a);
-  // Frame
-  painting.rect(700, 190, 75, 60);
-  painting.fill(COLORS.woodDark);
-  painting.rect(705, 195, 65, 50);
+  // Frame - warm wood with rounded corners
+  painting.roundRect(690, 78, 80, 65, 4);
+  painting.fill(COLORS.woodMid);
+  painting.roundRect(696, 84, 68, 53, 2);
   painting.fill(0x1a2332);
-  // Abstract landscape - sky gradient
-  painting.rect(707, 197, 61, 25);
-  painting.fill(0x5a7a9a);
-  // Sunset glow
-  painting.rect(707, 215, 61, 8);
-  painting.fill(0xcc8866);
-  // Sun
-  painting.circle(750, 213, 8);
-  painting.fill(0xffaa66);
-  // Mountains
-  painting.poly([707, 245, 725, 225, 745, 233, 768, 217, 768, 245]);
-  painting.fill(0x3a5a4a);
+  // Cozy landscape - warm sunset scene
+  painting.rect(698, 86, 64, 20);
+  painting.fill(0x6a5a70); // Dusk purple sky
+  painting.rect(698, 100, 64, 12);
+  painting.fill(0xcc8866); // Warm sunset
+  painting.rect(698, 106, 64, 6);
+  painting.fill(0xdd9977); // Horizon glow
+  // Sun setting
+  painting.circle(730, 105, 10);
+  painting.fill(0xffbb77);
+  // Rolling hills
+  painting.poly([698, 135, 715, 118, 735, 125, 762, 112, 762, 135]);
+  painting.fill(0x4a5a4a);
   room.addChild(painting);
 
-  // Clock on wall - above dev desk area, better placement
+  // Clock on wall - cozy wooden frame
   const clock = new Graphics();
+  // Clock wooden frame
+  clock.circle(600, 85, 28);
+  clock.fill(COLORS.woodMid);
+  clock.circle(600, 85, 25);
+  clock.fill(COLORS.woodLight);
   // Clock face
-  clock.circle(580, 180, 20);
+  clock.circle(600, 85, 22);
   clock.fill(COLORS.cream);
-  clock.circle(580, 180, 17);
-  clock.stroke({ width: 2, color: COLORS.woodDark });
+  clock.circle(600, 85, 20);
+  clock.stroke({ width: 1, color: COLORS.woodDark });
   // Clock center
-  clock.circle(580, 180, 2);
+  clock.circle(600, 85, 3);
   clock.fill(COLORS.woodDark);
   
-  // Hour hand pointing to 10 (angled up-left)
-  clock.poly([580, 180, 572, 172, 574, 170, 582, 178]);
+  // Hour hand pointing to 10
+  clock.poly([600, 85, 592, 77, 594, 75, 602, 83]);
   clock.fill(COLORS.woodDark);
   
-  // Minute hand pointing to 2 (angled up-right)  
-  clock.poly([580, 180, 590, 168, 592, 170, 582, 182]);
+  // Minute hand pointing to 2
+  clock.poly([600, 85, 610, 71, 612, 73, 602, 87]);
   clock.fill(0x5a5a6a);
   
-  // Hour markers (just dots)
-  clock.circle(580, 163, 2);
+  // Hour markers (simple dots)
+  clock.circle(600, 66, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(580, 197, 2);
+  clock.circle(600, 104, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(563, 180, 2);
+  clock.circle(581, 85, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(597, 180, 2);
+  clock.circle(619, 85, 2);
   clock.fill(COLORS.woodDark);
   
   room.addChild(clock);
 
-  // Simple area rug to tie the room together
+  // Large cozy area rug - makes the room feel homely
   const rug = new Graphics();
-  // Outer border
-  rug.roundRect(320, 510, 160, 55, 3);
-  rug.fill(0x4a3a4a);
-  // Main rug
-  rug.roundRect(326, 515, 148, 45, 2);
-  rug.fill(0x5a4a5a);
-  // Inner pattern - filled rectangle
-  rug.roundRect(334, 522, 132, 31, 2);
-  rug.fill(0x6a5a6a);
-  // Center accent line
-  rug.rect(360, 535, 80, 4);
-  rug.fill(0x7a6a5a);
+  // Outer border - warm burgundy/brown
+  rug.roundRect(250, 480, 300, 90, 6);
+  rug.fill(0x5a3a3a);
+  // Main rug body
+  rug.roundRect(258, 486, 284, 78, 4);
+  rug.fill(0x6a4a45);
+  // Inner border pattern
+  rug.roundRect(268, 494, 264, 62, 3);
+  rug.fill(0x5a3a38);
+  // Center field
+  rug.roundRect(278, 502, 244, 46, 2);
+  rug.fill(0x6a4a42);
+  // Subtle pattern - geometric lines
+  rug.rect(300, 520, 60, 3);
+  rug.fill(0x7a5a4a);
+  rug.rect(440, 520, 60, 3);
+  rug.fill(0x7a5a4a);
+  rug.rect(380, 512, 40, 3);
+  rug.fill(0x7a5a4a);
+  rug.rect(380, 532, 40, 3);
+  rug.fill(0x7a5a4a);
   room.addChild(rug);
+  
+  // Cozy floor lamp in corner - grounded on floor
+  const lamp = new Graphics();
+  // Lamp base on floor
+  lamp.ellipse(760, 590, 18, 6);
+  lamp.fill(0x3a3a3a);
+  lamp.ellipse(760, 588, 15, 5);
+  lamp.fill(0x4a4a4a);
+  // Lamp pole
+  lamp.rect(757, 320, 6, 270);
+  lamp.fill(0x5a5a5a);
+  lamp.rect(759, 320, 2, 270);
+  lamp.fill(0x6a6a6a);
+  // Lamp shade
+  lamp.poly([738, 320, 782, 320, 775, 270, 745, 270]);
+  lamp.fill(0x8a7a6a);
+  // Lamp shade inner glow
+  lamp.poly([742, 318, 778, 318, 772, 275, 748, 275]);
+  lamp.fill(0xeeddbb);
+  // Light glow effect under shade
+  lamp.ellipse(760, 322, 18, 4);
+  lamp.fill(0xffeecc);
+  room.addChild(lamp);
 }
 
 function createAwards(x: number, y: number): Container {
@@ -423,74 +483,111 @@ function createStudyDesk(x: number, y: number): Container {
 
   const desk = new Graphics();
   
-  // Desk surface
-  desk.rect(0, 80, 180, 12);
+  // Desk surface - rounded for cuter look
+  desk.roundRect(-5, 80, 195, 14, 4);
   desk.fill(COLORS.woodMid);
-  desk.rect(0, 80, 180, 3);
+  desk.roundRect(-5, 80, 195, 4, 2);
   desk.fill(COLORS.woodLight);
   
-  // Desk front panel
-  desk.rect(0, 92, 180, 45);
+  // Desk front panel - with rounded corners
+  desk.roundRect(0, 94, 185, 48, 4);
   desk.fill(COLORS.woodDark);
   
-  // Drawer
-  desk.rect(60, 98, 60, 32);
+  // Cute drawer with rounded corners
+  desk.roundRect(58, 100, 65, 36, 4);
   desk.fill(COLORS.woodMid);
-  desk.rect(85, 110, 10, 8);
+  // Drawer handle - cute round knob
+  desk.circle(90, 118, 6);
   desk.fill(COLORS.gold);
+  desk.circle(90, 118, 4);
+  desk.fill(COLORS.goldDark);
   
-  // Desk legs
-  desk.rect(8, 137, 12, 55);
+  // Desk legs - tapered for style
+  desk.poly([8, 142, 22, 142, 18, 192, 12, 192]);
   desk.fill(COLORS.woodDark);
-  desk.rect(160, 137, 12, 55);
+  desk.poly([163, 142, 177, 142, 173, 192, 167, 192]);
   desk.fill(COLORS.woodDark);
+
+  // Open Spiral Notebook (Academics)
+  // Shadow
+  desk.roundRect(52, 58, 84, 28, 2);
+  desk.fill(COLORS.carpetDark);
+
+  // Cover (Dark Blue)
+  desk.roundRect(50, 56, 84, 28, 2);
+  desk.fill(0x3a4a5a);
+
+  // Pages (Cream/White)
+  // Left Page
+  desk.rect(52, 58, 38, 24);
+  desk.fill(COLORS.paper);
+  // Right Page
+  desk.rect(94, 58, 38, 24);
+  desk.fill(COLORS.paper);
+
+  // Text/Lines
+  for (let i = 0; i < 4; i++) {
+    const ly = 64 + i * 5;
+    // Left lines
+    desk.rect(56, ly, 30, 1);
+    desk.fill(0xd0d0d0);
+    // Right lines
+    desk.rect(98, ly, 30, 1);
+    desk.fill(0xd0d0d0);
+  }
+
+  // Spiral Binding (Center)
+  desk.rect(90, 56, 4, 28);
+  desk.fill(0x222222); // Dark gap
+
+  for (let i = 0; i < 8; i++) {
+    const ly = 58 + i * 3;
+    desk.roundRect(89, ly, 6, 1.5, 0.75);
+    desk.fill(0xcccccc);
+  }
   
-  // Laptop on desk
-  // Laptop base
-  desk.rect(50, 68, 80, 12);
-  desk.fill(0x3a3a4a);
-  desk.rect(52, 70, 76, 8);
-  desk.fill(0x4a4a5a);
-  
-  // Laptop screen
-  desk.rect(55, 25, 70, 43);
+  // Pen laying beside notebook
+  desk.roundRect(140, 65, 40, 5, 2);
   desk.fill(0x2a2a3a);
-  desk.rect(58, 28, 64, 35);
-  desk.fill(COLORS.screenDark);
+  desk.poly([140, 65, 140, 70, 136, 67.5]); // Pen tip
+  desk.fill(0xc0c0c0);
+  desk.roundRect(170, 66, 10, 3, 1);
+  desk.fill(0x4a4a5a); // Pen clip
   
-  // Screen content
-  desk.rect(62, 33, 30, 3);
-  desk.fill(0x5a8aba);
-  desk.rect(62, 39, 45, 2);
-  desk.fill(0x6a9aca);
-  desk.rect(62, 44, 35, 2);
-  desk.fill(0x6a9aca);
-  desk.rect(62, 49, 50, 2);
-  desk.fill(0x6a9aca);
-  desk.rect(62, 54, 40, 2);
-  desk.fill(0x5a8aba);
+  // Cozy coffee mug with steam
+  desk.roundRect(148, 60, 22, 20, 4);
+  desk.fill(0x7a6a5a); // Warm ceramic
+  desk.roundRect(168, 66, 8, 10, 4);
+  desk.fill(0x7a6a5a); // Handle
+  desk.ellipse(159, 62, 10, 4);
+  desk.fill(0x5a4030); // Coffee
+  // Steam lines
+  desk.rect(155, 50, 2, 8);
+  desk.fill(0xcccccc);
+  desk.rect(161, 48, 2, 10);
+  desk.fill(0xcccccc);
   
-  // Laptop hinge
-  desk.rect(55, 68, 70, 3);
-  desk.fill(0x3a3a4a);
-  
-  // Coffee mug
-  desk.rect(145, 65, 18, 15);
-  desk.fill(0xeeeedd);
-  desk.rect(163, 69, 6, 7);
-  desk.fill(0xeeeedd);
-  desk.ellipse(154, 66, 9, 3);
-  desk.fill(0x5a4030);
-  
-  // Pencil holder
-  desk.rect(15, 62, 20, 18);
-  desk.fill(0x5a5a6a);
-  desk.rect(18, 50, 3, 14);
+  // Cute pencil cup - rounded
+  desk.roundRect(12, 58, 26, 22, 6);
+  desk.fill(0x6a6a7a);
+  desk.roundRect(14, 60, 22, 4, 2);
+  desk.fill(0x7a7a8a);
+  desk.rect(18, 46, 4, 16);
   desk.fill(0xf4c542); // Yellow pencil
-  desk.rect(24, 52, 3, 12);
-  desk.fill(0x4a4a4a); // Dark pen
-  desk.rect(30, 49, 3, 15);
-  desk.fill(0x8a8a9a); // Silver pen
+  desk.poly([18, 46, 22, 46, 20, 42]); // Pencil tip
+  desk.fill(0xeeddcc);
+  desk.rect(26, 48, 4, 14);
+  desk.fill(0x4a5a6a); // Blue pen
+  desk.rect(32, 45, 4, 17);
+  desk.fill(0x8a5a5a); // Red pen
+  
+  // Small desk plant
+  desk.roundRect(0, 62, 18, 18, 4);
+  desk.fill(0x6a5545);
+  desk.circle(9, 55, 10);
+  desk.fill(0x4a7a4a);
+  desk.circle(5, 58, 6);
+  desk.fill(0x5a8a5a);
   
   container.addChild(desk);
   
@@ -505,32 +602,32 @@ function createDevSetup(x: number, y: number): Container {
 
   const setup = new Graphics();
   
-  // Desk surface
-  setup.rect(0, 130, 260, 14);
+  // Desk surface - rounded edges for welcoming feel
+  setup.roundRect(-5, 130, 270, 16, 5);
   setup.fill(COLORS.woodMid);
-  setup.rect(0, 130, 260, 3);
+  setup.roundRect(-5, 130, 270, 5, 3);
   setup.fill(COLORS.woodLight);
   
-  // Desk front
-  setup.rect(0, 144, 260, 50);
+  // Desk front - with subtle rounded corners
+  setup.roundRect(0, 146, 260, 52, 5);
   setup.fill(COLORS.woodDark);
   
-  // Desk legs
-  setup.rect(10, 194, 14, 50);
+  // Desk legs - tapered, modern style
+  setup.poly([12, 198, 28, 198, 24, 244, 16, 244]);
   setup.fill(COLORS.woodDark);
-  setup.rect(236, 194, 14, 50);
+  setup.poly([232, 198, 248, 198, 244, 244, 236, 244]);
   setup.fill(COLORS.woodDark);
   
-  // Monitor stand base (on desk)
-  setup.rect(90, 118, 80, 12);
+  // Monitor stand base - sleek rounded
+  setup.roundRect(88, 116, 84, 14, 4);
+  setup.fill(0x3a3a4a);
+  setup.roundRect(118, 98, 24, 20, 3);
+  setup.fill(0x3a3a4a);
+  
+  // Main monitor - modern rounded bezel
+  setup.roundRect(58, 8, 144, 92, 6);
   setup.fill(0x2a2a3a);
-  setup.rect(120, 100, 20, 18);
-  setup.fill(0x2a2a3a);
-  
-  // Main monitor
-  setup.rect(60, 10, 140, 90);
-  setup.fill(0x1a1a2a);
-  setup.rect(65, 15, 130, 78);
+  setup.roundRect(64, 14, 132, 80, 4);
   setup.fill(COLORS.screenDark);
   
   // Code on screen - syntax highlighted
@@ -552,42 +649,50 @@ function createDevSetup(x: number, y: number): Container {
     setup.fill(line.color);
   });
   
-  // Keyboard on desk
-  setup.roundRect(80, 135, 100, 18, 2);
+  // Keyboard on desk - mechanical style
+  setup.roundRect(78, 133, 104, 22, 4);
   setup.fill(0x3a3a4a);
-  // Key rows
+  // Key rows with rounded keys
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 12; col++) {
-      setup.rect(85 + col * 8, 138 + row * 5, 6, 4);
-      setup.fill(0x4a4a5a);
+      setup.roundRect(84 + col * 8, 137 + row * 6, 6, 5, 1);
+      setup.fill(0x5a5a6a);
     }
   }
   
-  // Mouse
-  setup.roundRect(195, 138, 18, 12, 4);
+  // Mouse - ergonomic shape
+  setup.roundRect(196, 136, 22, 16, 6);
   setup.fill(0x3a3a4a);
-  setup.rect(202, 140, 4, 4);
+  setup.roundRect(204, 138, 6, 6, 2);
   setup.fill(0x4a4a5a);
   
-  // Small desk plant
-  setup.rect(20, 110, 22, 20);
-  setup.fill(0x6a5040);
-  setup.rect(20, 110, 22, 4);
-  setup.fill(0x5a4030);
-  setup.ellipse(31, 100, 14, 16);
-  setup.fill(0x3a6a3a);
-  setup.ellipse(25, 105, 8, 10);
+  // Cute desk plant in nice pot
+  setup.roundRect(16, 106, 28, 24, 6);
+  setup.fill(0x7a6050); // Terracotta pot
+  setup.roundRect(18, 108, 24, 4, 2);
+  setup.fill(0x8a7060); // Pot rim
+  setup.ellipse(30, 96, 16, 18);
   setup.fill(0x4a7a4a);
-  setup.ellipse(37, 103, 8, 10);
-  setup.fill(0x4a7a4a);
+  setup.ellipse(23, 100, 10, 12);
+  setup.fill(0x5a8a5a);
+  setup.ellipse(37, 98, 10, 12);
+  setup.fill(0x5a8a5a);
   
-  // Water bottle on desk
-  setup.roundRect(225, 105, 14, 25, 4);
-  setup.fill(0x4a7a9a);
-  setup.roundRect(227, 100, 10, 8, 2);
-  setup.fill(0x3a3a4a);
-  setup.rect(229, 110, 8, 3);
-  setup.fill(0x6a9aba);
+  // Water bottle - sporty style
+  setup.roundRect(226, 102, 18, 28, 6);
+  setup.fill(0x4a7a8a);
+  setup.roundRect(228, 96, 14, 10, 4);
+  setup.fill(0x3a3a4a); // Cap
+  setup.rect(230, 110, 12, 4);
+  setup.fill(0x6a9aba); // Label stripe
+  
+  // Headphones hanging on monitor (cozy touch)
+  setup.roundRect(190, 20, 22, 26, 8);
+  setup.fill(0x4a4a5a);
+  setup.roundRect(192, 22, 18, 22, 6);
+  setup.fill(0x5a5a6a);
+  setup.roundRect(194, 8, 14, 14, 4);
+  setup.fill(0x4a4a5a); // Headband
   
   container.addChild(setup);
   
