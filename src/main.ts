@@ -114,19 +114,11 @@ async function init() {
 function drawRoom(room: Container) {
   const bg = new Graphics();
   
-  // Wall - warm evening tone, no weird border
+  // Wall - clean single color, no borders
   bg.rect(0, 0, ROOM_WIDTH, 420);
   bg.fill(0x4a4a5c); // Warm slate
   
-  // Subtle wainscoting effect - lower wall slightly different
-  bg.rect(0, 320, ROOM_WIDTH, 100);
-  bg.fill(0x424252);
-  
-  // Thin trim line between upper and lower wall
-  bg.rect(0, 318, ROOM_WIDTH, 4);
-  bg.fill(0x5a5a6a);
-  
-  // Baseboard
+  // Baseboard only
   bg.rect(0, 410, ROOM_WIDTH, 12);
   bg.fill(0x3a3030);
   bg.rect(0, 410, ROOM_WIDTH, 2);
@@ -268,33 +260,33 @@ function drawRoom(room: Container) {
   painting.fill(0x3a5a4a);
   room.addChild(painting);
 
-  // Clock on wall - upper right, clean analog look
+  // Clock on wall - above dev desk area, better placement
   const clock = new Graphics();
   // Clock face
-  clock.circle(620, 95, 20);
+  clock.circle(580, 180, 20);
   clock.fill(COLORS.cream);
-  clock.circle(620, 95, 17);
+  clock.circle(580, 180, 17);
   clock.stroke({ width: 2, color: COLORS.woodDark });
   // Clock center
-  clock.circle(620, 95, 2);
+  clock.circle(580, 180, 2);
   clock.fill(COLORS.woodDark);
   
   // Hour hand pointing to 10 (angled up-left)
-  clock.poly([620, 95, 612, 87, 614, 85, 622, 93]);
+  clock.poly([580, 180, 572, 172, 574, 170, 582, 178]);
   clock.fill(COLORS.woodDark);
   
   // Minute hand pointing to 2 (angled up-right)  
-  clock.poly([620, 95, 630, 83, 632, 85, 622, 97]);
+  clock.poly([580, 180, 590, 168, 592, 170, 582, 182]);
   clock.fill(0x5a5a6a);
   
   // Hour markers (just dots)
-  clock.circle(620, 78, 2);
+  clock.circle(580, 163, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(620, 112, 2);
+  clock.circle(580, 197, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(603, 95, 2);
+  clock.circle(563, 180, 2);
   clock.fill(COLORS.woodDark);
-  clock.circle(637, 95, 2);
+  clock.circle(597, 180, 2);
   clock.fill(COLORS.woodDark);
   
   room.addChild(clock);
