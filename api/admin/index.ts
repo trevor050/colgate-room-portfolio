@@ -3,11 +3,13 @@ export default function handler(_req: any, res: any) {
   res.statusCode = 200;
   res.end(`<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Portfolio Analytics</title>
-    <style>
+	  <head>
+	    <meta charset="UTF-8" />
+	    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	    <title>Portfolio Analytics</title>
+	    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+	    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+	    <style>
       :root{
         color-scheme: dark;
         --bg:#0b1020;
@@ -53,12 +55,14 @@ export default function handler(_req: any, res: any) {
       .kpi .n{font-size:16px;color:var(--text);font-weight:700}
       .kpi .l{font-size:12px;color:var(--muted);margin-top:2px}
       .timeline{display:grid;gap:8px}
-      .evt{display:grid;grid-template-columns:72px 1fr;gap:10px;padding:10px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18);border-radius:12px}
-      .evt .t{color:var(--muted);font-size:12px}
-      .evt .h{font-size:13px;color:var(--text);font-weight:650}
-      .evt .d{font-size:12px;color:var(--muted);margin-top:2px}
-    </style>
-  </head>
+	      .evt{display:grid;grid-template-columns:72px 1fr;gap:10px;padding:10px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18);border-radius:12px}
+	      .evt .t{color:var(--muted);font-size:12px}
+	      .evt .h{font-size:13px;color:var(--text);font-weight:650}
+	      .evt .d{font-size:12px;color:var(--muted);margin-top:2px}
+	      #map{height:450px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.18)}
+	      .leaflet-container{background:rgba(0,0,0,.18)}
+	    </style>
+	  </head>
   <body>
     <div id="authRoot" class="center">
       <div class="card auth">
@@ -363,43 +367,92 @@ export default function handler(_req: any, res: any) {
           '<div class=\"row\" style=\"margin-top:10px\">Tip: adjust sensitivity with <span class=\"mono\">BOT_SCORE_THRESHOLD</span> env var.</div>';
       }
 
-      function renderMap(){
-        const m=state.map;
-        if(!m){ $('list').innerHTML='<div class=\"row\">Loading…</div>'; $('details').innerHTML=''; return; }
-        const points=m.points||[];
-        const w=900, h=450;
-        function proj(p){
-          const x=(p.lon+180)/360*w;
-          const y=(90-p.lat)/180*h;
-          return {x,y};
-        }
-        const svg=[
-          '<div class=\"row\" style=\"margin-bottom:8px\">Map (click a dot)</div>',
-          '<svg id=\"mapSvg\" viewBox=\"0 0 '+w+' '+h+'\" width=\"100%\" height=\"450\" style=\"border:1px solid rgba(255,255,255,.10);border-radius:12px;background:rgba(0,0,0,.18)\">',
-            '<g opacity=\"0.25\">',
-              ...Array.from({length:9}).map((_,i)=>'<line x1=\"0\" y1=\"'+(i*h/8)+'\" x2=\"'+w+'\" y2=\"'+(i*h/8)+'\" stroke=\"white\" stroke-width=\"1\" />'),
-              ...Array.from({length:13}).map((_,i)=>'<line x1=\"'+(i*w/12)+'\" y1=\"0\" x2=\"'+(i*w/12)+'\" y2=\"'+h+'\" stroke=\"white\" stroke-width=\"1\" />'),
-            '</g>',
-            '<g>',
-              ...points.map((p)=>{
-                const q=proj(p);
-                const r=Math.max(3, Math.min(10, 2+Math.log2((p.sessions||1)+1)));
-                const label=(p.display_name||p.vid||'').replace(/\"/g,'');
-                return '<circle data-vid=\"'+p.vid+'\" cx=\"'+q.x.toFixed(1)+'\" cy=\"'+q.y.toFixed(1)+'\" r=\"'+r+'\" fill=\"rgba(255,215,0,.75)\" stroke=\"rgba(0,0,0,.35)\" stroke-width=\"1\"><title>'+label+'</title></circle>';
-              }).join(''),
-            '</g>',
-          '</svg>'
-        ].join('');
-        $('list').innerHTML=svg;
-        $('list').querySelectorAll('circle[data-vid]').forEach((c)=>{
-          c.addEventListener('click', async (e)=>{
-            e.stopPropagation();
-            const vid=c.getAttribute('data-vid');
-            if(vid) await loadVisitor(vid);
-          });
-        });
-        $('details').innerHTML='<div class=\"row\">Click a dot to open the visitor timeline.</div>';
-      }
+	      function renderMap(){
+	        const m=state.map;
+	        if(!m){ $('list').innerHTML='<div class=\"row\">Loading…</div>'; $('details').innerHTML=''; return; }
+	        const points=m.points||[];
+
+	        const hint = points.length
+	          ? '<div class=\"row\" style=\"margin-bottom:8px\">Map (scroll to zoom, drag to pan, click a marker)</div>'
+	          : '<div class=\"row\" style=\"margin-bottom:8px\">Map</div><div class=\"row\">No geo points yet (needs Vercel geo headers).</div>';
+
+	        const tableRows = points.slice(0, 80).map((p)=>{
+	          const loc=[p.city,p.region,p.country].filter(Boolean).join(', ');
+	          return '<tr class=\"clickable\" data-vid=\"'+p.vid+'\">'+
+	            '<td class=\"mono\">'+(p.display_name||p.vid.slice(0,8))+'</td>'+
+	            '<td>'+loc+'</td>'+
+	            '<td class=\"mono\">'+(p.ptr||p.ip||'')+'</td>'+
+	            '<td>'+ (p.sessions||0) +'</td>'+
+	          '</tr>';
+	        }).join('');
+
+	        $('list').innerHTML =
+	          hint +
+	          '<div id=\"map\"></div>' +
+	          '<div class=\"row\" style=\"margin:12px 0 8px\">Visitors</div>' +
+	          '<table><thead><tr><th>Visitor</th><th>Location</th><th>Identity</th><th>Sessions</th></tr></thead><tbody>' +
+	            (tableRows || '<tr><td colspan=\"4\" style=\"text-align:center;color:var(--muted);\">No mappable visitors yet.</td></tr>') +
+	          '</tbody></table>';
+
+	        $('list').querySelectorAll('tr[data-vid]').forEach((tr)=>{
+	          tr.addEventListener('click', async ()=>{
+	            const vid=tr.getAttribute('data-vid');
+	            if(vid) await loadVisitor(vid);
+	          });
+	        });
+
+	        // If Leaflet is blocked/unavailable, fall back to the table-only view.
+	        if (typeof window.L === 'undefined') {
+	          $('details').innerHTML =
+	            '<div class=\"row\">Interactive map blocked.</div>' +
+	            '<div class=\"row\">Allow <span class=\"mono\">unpkg.com</span> and <span class=\"mono\">basemaps.cartocdn.com</span> (admin page only) to enable zoomable tiles.</div>';
+	          return;
+	        }
+
+	        try {
+	          if (window.__portfolioLeafletMap) {
+	            window.__portfolioLeafletMap.remove();
+	          }
+	        } catch {}
+
+	        const mapEl = document.getElementById('map');
+	        if (!mapEl) return;
+
+	        const leaflet = L.map('map', { center: [20, 0], zoom: 2, scrollWheelZoom: true, attributionControl: false });
+	        window.__portfolioLeafletMap = leaflet;
+
+	        try {
+	          L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18 }).addTo(leaflet);
+	        } catch {
+	          // Markers will still render on the dark background.
+	        }
+
+	        const markers = [];
+	        points.forEach((p) => {
+	          if (p.lat == null || p.lon == null) return;
+	          const radius = Math.max(6, Math.min(14, 5 + Math.log2((p.sessions || 1) + 1) * 2));
+	          const marker = L.circleMarker([p.lat, p.lon], {
+	            radius,
+	            color: 'rgba(0,0,0,0.35)',
+	            weight: 1,
+	            fillColor: 'rgba(255,215,0,0.85)',
+	            fillOpacity: 0.9,
+	          }).addTo(leaflet);
+	          marker.bindTooltip((p.display_name||p.vid.slice(0,8)) + ' • ' + (p.sessions||0) + ' sessions', { direction: 'top' });
+	          marker.on('click', () => loadVisitor(p.vid));
+	          markers.push(marker);
+	        });
+
+	        if (markers.length >= 2) {
+	          const group = L.featureGroup(markers);
+	          leaflet.fitBounds(group.getBounds().pad(0.25), { maxZoom: 6 });
+	        } else if (markers.length === 1) {
+	          leaflet.setView(markers[0].getLatLng(), 6);
+	        }
+
+	        setTimeout(() => { try { leaflet.invalidateSize(); } catch {} }, 0);
+	        $('details').innerHTML='<div class=\"row\">Click a marker (or a row) to open the visitor timeline.</div>';
+	      }
 
       function renderSettings(){
         $('list').innerHTML=
