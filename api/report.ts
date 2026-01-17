@@ -288,16 +288,19 @@ export default async function handler(req: any, res: any) {
       discordBody.embeds[0].fields.unshift({ name: 'Bot score', value: `${bot.score} (${bot.reasons.join(', ') || 'n/a'})`, inline: false });
     }
 
-    const discordRes = await fetch(targetWebhookUrl, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(discordBody),
-    });
+    const send = async (url: string) => {
+      return await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(discordBody),
+      });
+    };
 
-    if (!discordRes.ok) {
-      res.statusCode = 502;
-      res.end('Bad Gateway');
-      return;
+    // Best-effort: never error the site if Discord rejects/ratelimits.
+    // If a bot webhook is configured but broken, fall back to the primary channel.
+    let discordRes = await send(targetWebhookUrl);
+    if (!discordRes.ok && targetWebhookUrl !== primaryWebhookUrl && primaryWebhookUrl) {
+      discordRes = await send(primaryWebhookUrl);
     }
 
     res.statusCode = 204;
