@@ -2,10 +2,19 @@ import './style.css';
 import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEvent } from 'pixi.js';
 import { GlowFilter } from 'pixi-filters';
 import { inject } from '@vercel/analytics';
+import posthog from 'posthog-js';
 import { content } from './content';
 
 if (import.meta.env.PROD) {
   inject();
+}
+
+const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY as string | undefined;
+const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST as string | undefined;
+if (import.meta.env.PROD && posthogKey) {
+  posthog.init(posthogKey, {
+    api_host: posthogHost ?? 'https://us.i.posthog.com',
+  });
 }
 
 // Room dimensions

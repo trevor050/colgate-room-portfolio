@@ -18,3 +18,7 @@ All portfolio text/content lives in `src/content.ts`.
 - GitHub: push to `main`
 - Vercel: `vercel --prod`
 
+## Analytics
+
+- Vercel Analytics: enabled in `src/main.ts`
+- PostHog: set `VITE_PUBLIC_POSTHOG_KEY` and `VITE_PUBLIC_POSTHOG_HOST` (see `.env`)
