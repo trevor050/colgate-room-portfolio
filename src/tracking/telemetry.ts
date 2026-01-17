@@ -39,6 +39,8 @@ function safeJsonStringify(value: unknown, maxLen = 5000): string | undefined {
 const trackingSidKey = 'visit_sid';
 const trackingVidKey = 'visit_vid';
 const trackingSessionCookieKey = 'visit_scid';
+const trackingRefKey = 'visit_ref';
+const trackingFingerprintKey = 'visit_fpid';
 const trackingVisitSentKey = 'visit_reported';
 
 function readCookie(name: string): string | null {
@@ -70,6 +72,44 @@ function getSessionCookieId(): string {
   const scid = crypto.randomUUID?.() ?? `scid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
   writeSessionCookie(trackingSessionCookieKey, scid);
   return scid;
+}
+
+function getRefTag(persistVisitorId: 'localStorage' | 'cookie'): string | null {
+  try {
+    const params = new URL(window.location.href).searchParams;
+    const incoming = params.get('ref');
+    if (incoming) {
+      if (persistVisitorId === 'cookie') writeCookie(trackingRefKey, incoming);
+      else localStorage.setItem(trackingRefKey, incoming);
+      return incoming;
+    }
+  } catch {
+    // ignore
+  }
+  return persistVisitorId === 'cookie' ? readCookie(trackingRefKey) : localStorage.getItem(trackingRefKey);
+}
+
+function getCachedFingerprintId(): string | null {
+  try {
+    return localStorage.getItem(trackingFingerprintKey);
+  } catch {
+    return null;
+  }
+}
+
+let fingerprintPromise: Promise<string | null> | null = null;
+function ensureFingerprintId() {
+  if (getCachedFingerprintId()) return;
+  if (fingerprintPromise) return;
+  fingerprintPromise = import('@fingerprintjs/fingerprintjs')
+    .then((mod) => mod.default.load())
+    .then((fp) => fp.get())
+    .then((res) => {
+      const id = res?.visitorId ?? null;
+      if (id) localStorage.setItem(trackingFingerprintKey, id);
+      return id;
+    })
+    .catch(() => null);
 }
 
 function getTrackingIds(persistVisitorId: 'localStorage' | 'cookie'): { vid: string; sid: string } {
@@ -183,10 +223,14 @@ export function createTelemetryClient(options: TelemetryClientOptions = {}) {
 
     const { vid, sid } = getTrackingIds(persistVisitorId);
     const scid = getSessionCookieId();
+    const refTag = getRefTag(persistVisitorId);
+    const fpid = getCachedFingerprintId();
     const payload = {
       vid,
       sid,
       scid,
+      ref_tag: refTag ?? undefined,
+      fpid: fpid ?? undefined,
       page: getPage(),
       referrer: getReferrer(),
       is_mobile: isMobile(),
@@ -336,6 +380,14 @@ export function createTelemetryClient(options: TelemetryClientOptions = {}) {
     );
 
     ensureIdleChecker();
+    ensureFingerprintId();
+    if (fingerprintPromise) {
+      fingerprintPromise.then((id) => {
+        if (!id) return;
+        track('fingerprint_ready', { fingerprint_id: id });
+        void flush();
+      });
+    }
   }
 
   return {

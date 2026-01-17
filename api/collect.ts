@@ -93,6 +93,8 @@ export default async function handler(req: any, res: any) {
     const vid = clampString(body?.vid, 128);
     const sid = clampString(body?.sid, 128);
     const scid = clampString(body?.scid, 128);
+    const fpid = clampString(body?.fpid, 128);
+    const refTag = clampString(body?.ref_tag, 120);
     if (!vid || !sid) {
       res.statusCode = 400;
       res.end('Bad Request');
@@ -145,16 +147,22 @@ export default async function handler(req: any, res: any) {
           first_user_agent,
           last_user_agent,
           first_referrer,
-          last_referrer
+          last_referrer,
+          first_ref_tag,
+          last_ref_tag,
+          first_fingerprint_id,
+          last_fingerprint_id
         )
-        VALUES ($1, $2, $3, $3, $4, $4, $5, $5)
+        VALUES ($1, $2, $3, $3, $4, $4, $5, $5, $6, $6, $7, $7)
         ON CONFLICT (vid) DO UPDATE SET
           last_seen_at = NOW(),
           last_ip = COALESCE(EXCLUDED.last_ip, visitors.last_ip),
           last_user_agent = COALESCE(EXCLUDED.last_user_agent, visitors.last_user_agent),
-          last_referrer = COALESCE(EXCLUDED.last_referrer, visitors.last_referrer)
+          last_referrer = COALESCE(EXCLUDED.last_referrer, visitors.last_referrer),
+          last_ref_tag = COALESCE(EXCLUDED.last_ref_tag, visitors.last_ref_tag),
+          last_fingerprint_id = COALESCE(EXCLUDED.last_fingerprint_id, visitors.last_fingerprint_id)
       `,
-      [vid, makeDisplayName(vid), ip ?? null, userAgent, referrer]
+      [vid, makeDisplayName(vid), ip ?? null, userAgent, referrer, refTag ?? null, fpid ?? null]
     );
 
     const startedAt =
@@ -165,16 +173,17 @@ export default async function handler(req: any, res: any) {
     await query(
       `
         INSERT INTO sessions (
-          sid, vid, session_cookie_id, started_at, ip, user_agent, accept_language, referrer, page, is_mobile, orientation,
+          sid, vid, session_cookie_id, fingerprint_id, ref_tag, started_at, ip, user_agent, accept_language, referrer, page, is_mobile, orientation,
           geo, bot_score, bot_reasons, is_bot
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17)
         ON CONFLICT (sid) DO UPDATE SET
           updated_at = NOW(),
           ip = COALESCE(EXCLUDED.ip, sessions.ip),
           user_agent = COALESCE(EXCLUDED.user_agent, sessions.user_agent),
           accept_language = COALESCE(EXCLUDED.accept_language, sessions.accept_language),
           referrer = COALESCE(EXCLUDED.referrer, sessions.referrer),
+          ref_tag = COALESCE(EXCLUDED.ref_tag, sessions.ref_tag),
           page = COALESCE(EXCLUDED.page, sessions.page),
           is_mobile = COALESCE(EXCLUDED.is_mobile, sessions.is_mobile),
           orientation = COALESCE(EXCLUDED.orientation, sessions.orientation),
@@ -182,12 +191,15 @@ export default async function handler(req: any, res: any) {
           bot_score = GREATEST(COALESCE(sessions.bot_score, 0), EXCLUDED.bot_score),
           bot_reasons = COALESCE(NULLIF(EXCLUDED.bot_reasons, ''), sessions.bot_reasons),
           is_bot = COALESCE(sessions.is_bot, EXCLUDED.is_bot),
-          session_cookie_id = COALESCE(sessions.session_cookie_id, EXCLUDED.session_cookie_id)
+          session_cookie_id = COALESCE(sessions.session_cookie_id, EXCLUDED.session_cookie_id),
+          fingerprint_id = COALESCE(sessions.fingerprint_id, EXCLUDED.fingerprint_id)
       `,
       [
         sid,
         vid,
         scid ?? null,
+        fpid ?? null,
+        refTag ?? null,
         startedAt.toISOString(),
         ip ?? null,
         userAgent,

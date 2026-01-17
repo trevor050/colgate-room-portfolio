@@ -266,6 +266,9 @@ export default function handler(_req: any, res: any) {
           if(s.active_seconds!=null) bits.push('active '+fmtSec(s.active_seconds));
           if(s.session_seconds!=null) bits.push('total '+fmtSec(s.session_seconds));
           if(s.bot_reasons) bits.push('bot: '+str(s.bot_reasons));
+          if(s.session_cookie_id) bits.push('scid '+str(s.session_cookie_id));
+          if(s.fingerprint_id) bits.push('fp '+str(s.fingerprint_id));
+          if(s.ref_tag) bits.push('ref '+str(s.ref_tag));
 
           const last = events.length ? events[events.length-1] : null;
           const lastLine = last ? ('Last event: <span class=\"mono\">'+str(last.type)+'</span> @ <span class=\"mono\">'+fmtTime(last.ts)+'</span>') : 'No events captured yet.';
@@ -349,7 +352,7 @@ export default function handler(_req: any, res: any) {
         const html=[
           '<table>',
           '<thead><tr>',
-          '<th>Visitor</th><th>Sessions</th><th>Last seen</th><th>Last session</th><th>Identity</th><th>From</th><th>Last IP</th>',
+          '<th>Cluster</th><th>Visitor</th><th>Sessions</th><th>Last seen</th><th>Last session</th><th>Identity</th><th>From</th><th>Last IP</th>',
           '</tr></thead>',
           '<tbody>',
           ...rows.map((v)=>{
@@ -358,6 +361,7 @@ export default function handler(_req: any, res: any) {
             const sel = (state.selectedVid===v.vid) ? ' sel' : '';
             return (
               '<tr class=\"visitorRow'+sel+'\" data-vid=\"'+v.vid+'\">'+
+                '<td><div class=\"mono\">'+(v.cluster_name||v.cluster_id||'')+'</div><div class=\"mono\">'+(v.cluster_id||'')+'</div></td>'+
                 '<td>'+('<div class=\"mono\">'+(v.display_name||v.vid.slice(0,8))+'</div>')+
                   '<div class=\"mono\">'+v.vid.slice(0,8)+'</div>'+
                 '</td>'+
@@ -747,6 +751,7 @@ export default function handler(_req: any, res: any) {
         const related=data.related || [];
         const cookies=(cluster && Array.isArray(cluster.session_cookies)) ? cluster.session_cookies : [];
         const ips=(cluster && Array.isArray(cluster.ips)) ? cluster.ips : [];
+        const fpids=(cluster && Array.isArray(cluster.fingerprints)) ? cluster.fingerprints : [];
         const humanSessions=sessions.filter((s)=>!s.is_bot);
         const botSessions=sessions.filter((s)=>s.is_bot);
         const durations=humanSessions.map((s)=>Number(s.session_seconds)).filter((n)=>Number.isFinite(n) && n>0);
@@ -774,6 +779,9 @@ export default function handler(_req: any, res: any) {
           ) : '')+
           (cookies.length ? (
             '<div class=\"row\" style=\"margin-bottom:10px\">Session cookies: <span class=\"mono\">'+cookies.slice(0,6).join(', ')+'</span></div>'
+          ) : '')+
+          (fpids.length ? (
+            '<div class=\"row\" style=\"margin-bottom:10px\">Fingerprints: <span class=\"mono\">'+fpids.slice(0,6).join(', ')+'</span></div>'
           ) : '')+
           (ips.length ? (
             '<div class=\"row\" style=\"margin-bottom:10px\">Known IPs: <span class=\"mono\">'+ips.slice(0,6).join(', ')+'</span></div>'
@@ -807,6 +815,7 @@ export default function handler(_req: any, res: any) {
           const why=[];
           if(r.shared_cookie) why.push('cookie');
           if(r.shared_ip) why.push('ip');
+          if(r.shared_fingerprint) why.push('fingerprint');
           return '<tr data-vid=\"'+r.vid+'\">'+
             '<td class=\"mono\">'+(r.display_name||r.vid.slice(0,8))+'</td>'+
             '<td>'+fmtDate(r.last_seen_at)+'</td>'+
@@ -968,6 +977,11 @@ export default function handler(_req: any, res: any) {
         headerBits.push('<div class=\"row\" style=\"margin-bottom:10px\">'+
           (s.ptr?('<span>PTR: <span class=\"mono\">'+s.ptr+'</span></span>'):'')+
           (s.ip?('<span>IP: <span class=\"mono\">'+s.ip+'</span></span>'):'')+
+        '</div>');
+        headerBits.push('<div class=\"row\" style=\"margin-bottom:10px\">'+
+          (s.session_cookie_id?('<span>Session cookie: <span class=\"mono\">'+s.session_cookie_id+'</span></span>'):'')+
+          (s.fingerprint_id?('<span>Fingerprint: <span class=\"mono\">'+s.fingerprint_id+'</span></span>'):'')+
+          (s.ref_tag?('<span>Ref: <span class=\"mono\">'+s.ref_tag+'</span></span>'):'')+
         '</div>');
         if (s.session_cookie_id) {
           headerBits.push('<div class=\"row\" style=\"margin-bottom:10px\">'+

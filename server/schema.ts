@@ -68,11 +68,17 @@ export function ensureSchema(): Promise<void> {
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_fetched_at TIMESTAMPTZ;`);
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_error TEXT;`);
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_error_at TIMESTAMPTZ;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS first_ref_tag TEXT;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS last_ref_tag TEXT;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS first_fingerprint_id TEXT;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS last_fingerprint_id TEXT;`);
 
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ptr TEXT;`);
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS idle_seconds INTEGER;`);
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_seconds INTEGER;`);
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_cookie_id TEXT;`);
+      await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS fingerprint_id TEXT;`);
+      await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ref_tag TEXT;`);
 
       await query(`
         CREATE TABLE IF NOT EXISTS events (
@@ -98,6 +104,8 @@ export function ensureSchema(): Promise<void> {
       `);
 
       await query(`CREATE INDEX IF NOT EXISTS idx_session_ips_sid ON session_ips(sid);`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_sessions_cookie ON sessions(session_cookie_id);`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_sessions_fpid ON sessions(fingerprint_id);`);
 
       await query(`
         CREATE TABLE IF NOT EXISTS visitor_groups (

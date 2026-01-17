@@ -50,6 +50,8 @@ export default async function handler(req: any, res: any) {
     vid: sessionRow.vid,
     display_name: null as string | null,
     session_cookie_id: sessionRow.session_cookie_id ?? null,
+    fingerprint_id: sessionRow.fingerprint_id ?? null,
+    ref_tag: sessionRow.ref_tag ?? null,
     started_at: sessionRow.started_at,
     ended_at: sessionRow.ended_at,
     ip: sessionRow.ip,

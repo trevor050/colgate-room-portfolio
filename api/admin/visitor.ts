@@ -192,6 +192,17 @@ export default async function handler(req: any, res: any) {
   );
   const scids = cookieRes.rows.map((r: any) => r.session_cookie_id).filter(Boolean);
 
+  const fpidRes = await query<any>(
+    `
+      SELECT DISTINCT fingerprint_id
+      FROM sessions
+      WHERE vid = $1 AND fingerprint_id IS NOT NULL AND fingerprint_id <> ''
+      LIMIT 50
+    `,
+    [vid]
+  );
+  const fpids = fpidRes.rows.map((r: any) => r.fingerprint_id).filter(Boolean);
+
   const ipRes = await query<any>(
     `
       SELECT DISTINCT ip
@@ -203,7 +214,11 @@ export default async function handler(req: any, res: any) {
   );
   const ips = ipRes.rows.map((r: any) => r.ip).filter(Boolean);
 
-  const tokens = [...scids.map((s: string) => `scid:${s}`), ...ips.map((i: string) => `ip:${i}`)];
+  const tokens = [
+    ...scids.map((s: string) => `scid:${s}`),
+    ...ips.map((i: string) => `ip:${i}`),
+    ...fpids.map((f: string) => `fp:${f}`),
+  ];
   const rawKey = tokens.length ? tokens.sort().join('|') : `vid:${vid}`;
   const groupId = createHash('sha1').update(rawKey).digest('hex').slice(0, 12);
 
@@ -231,16 +246,17 @@ export default async function handler(req: any, res: any) {
         v.ptr,
         v.ipinfo,
         BOOL_OR(s.session_cookie_id = ANY($2::text[])) AS shared_cookie,
-        BOOL_OR(s.ip = ANY($3::text[])) AS shared_ip
+        BOOL_OR(s.ip = ANY($3::text[])) AS shared_ip,
+        BOOL_OR(s.fingerprint_id = ANY($4::text[])) AS shared_fingerprint
       FROM sessions s
       JOIN visitors v ON v.vid = s.vid
       WHERE s.vid <> $1
-        AND (s.session_cookie_id = ANY($2::text[]) OR s.ip = ANY($3::text[]))
+        AND (s.session_cookie_id = ANY($2::text[]) OR s.ip = ANY($3::text[]) OR s.fingerprint_id = ANY($4::text[]))
       GROUP BY s.vid, v.display_name, v.last_seen_at, v.last_ip, v.ptr, v.ipinfo
       ORDER BY v.last_seen_at DESC
       LIMIT 60
     `,
-    [vid, scids, ips]
+    [vid, scids, ips, fpids]
   );
 
   const related = relatedRes.rows.map((r: any) => {
@@ -257,6 +273,7 @@ export default async function handler(req: any, res: any) {
       org: ipinfoR.org ?? ipinfoR.company?.name ?? null,
       shared_cookie: Boolean(r.shared_cookie),
       shared_ip: Boolean(r.shared_ip),
+      shared_fingerprint: Boolean(r.shared_fingerprint),
     };
   });
 
@@ -266,7 +283,7 @@ export default async function handler(req: any, res: any) {
     JSON.stringify({
       visitor,
       sessions,
-      cluster: { id: groupId, display_name: groupName, session_cookies: scids, ips },
+      cluster: { id: groupId, display_name: groupName, session_cookies: scids, ips, fingerprints: fpids },
       related,
     })
   );
