@@ -40,6 +40,7 @@ First‑party analytics is collected by Vercel Functions and stored in Postgres:
 
 - Exclude your own device: visit `/?internal=1` once (to re-enable: `/?internal=0`).
 - Bots are hidden by default in the dashboard; add `?bots=1` to include them.
+- Tracker code map: `tracker/README.md`
 
 ### Third-party analytics (optional)
 

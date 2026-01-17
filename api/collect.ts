@@ -209,8 +209,10 @@ export default async function handler(req: any, res: any) {
             first_interaction_seconds = $2,
             interactions = $3,
             active_seconds = $4,
-            overlays = $5::jsonb,
-            overlays_unique = $6
+            idle_seconds = $5,
+            session_seconds = $6,
+            overlays = $7::jsonb,
+            overlays_unique = $8
           WHERE sid = $1
         `,
         [
@@ -218,6 +220,8 @@ export default async function handler(req: any, res: any) {
           typeof summary.first_interaction_seconds === 'number' ? summary.first_interaction_seconds : null,
           typeof summary.interactions === 'number' ? summary.interactions : null,
           typeof summary.active_seconds === 'number' ? summary.active_seconds : null,
+          typeof summary.idle_seconds === 'number' ? summary.idle_seconds : null,
+          typeof summary.session_seconds === 'number' ? summary.session_seconds : null,
           summary.overlays ? JSON.stringify(summary.overlays) : null,
           typeof summary.overlays_unique === 'number' ? summary.overlays_unique : null,
         ]

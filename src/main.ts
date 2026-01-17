@@ -3,6 +3,7 @@ import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEven
 import { GlowFilter } from 'pixi-filters';
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
+import { createTelemetryClient } from './tracking/telemetry';
 import { content } from './content';
 
 if (import.meta.env.PROD) {
@@ -224,16 +225,6 @@ function captureAnalytics(event: string, properties: Record<string, unknown> = {
   }
 }
 
-type TelemetryEvent = { type: string; ts: string; seq: number; data?: Record<string, unknown> };
-
-let telemetrySeq = 0;
-const telemetryQueue: TelemetryEvent[] = [];
-let telemetryFlushTimer: number | null = null;
-
-const trackingSidKey = 'visit_sid';
-const trackingVidKey = 'visit_vid';
-const trackingVisitSentKey = 'visit_reported';
-
 function isInternalDevice(): boolean {
   try {
     return localStorage.getItem('ph_internal') === '1';
@@ -242,84 +233,9 @@ function isInternalDevice(): boolean {
   }
 }
 
-function getTrackingIds(): { vid: string; sid: string } {
-  const sid =
-    sessionStorage.getItem(trackingSidKey) ??
-    (crypto.randomUUID?.() ?? `sid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
-  sessionStorage.setItem(trackingSidKey, sid);
-
-  const vid =
-    localStorage.getItem(trackingVidKey) ??
-    (crypto.randomUUID?.() ?? `vid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
-  localStorage.setItem(trackingVidKey, vid);
-
-  return { vid, sid };
-}
-
-function enqueueTelemetry(type: string, data: Record<string, unknown> = {}) {
-  if (!import.meta.env.PROD) return;
-  if (isInternalDevice()) return;
-
-  telemetryQueue.push({
-    type,
-    ts: new Date().toISOString(),
-    seq: telemetrySeq++,
-    data,
-  });
-
-  if (telemetryQueue.length >= 25) {
-    void flushTelemetry();
-    return;
-  }
-
-  if (telemetryFlushTimer == null) {
-    telemetryFlushTimer = window.setTimeout(() => {
-      telemetryFlushTimer = null;
-      void flushTelemetry();
-    }, 2500);
-  }
-}
-
-function flushTelemetry(options: { summary?: Record<string, unknown>; useBeacon?: boolean } = {}) {
-  if (!import.meta.env.PROD) return Promise.resolve();
-  if (isInternalDevice()) return Promise.resolve();
-
-  if (!telemetryQueue.length && !options.summary) return Promise.resolve();
-
-  const { vid, sid } = getTrackingIds();
-  const url = new URL(window.location.href);
-
-  const payload = {
-    vid,
-    sid,
-    page: url.pathname + url.search,
-    referrer: document.referrer || undefined,
-    is_mobile: window.matchMedia('(max-width: 900px)').matches,
-    orientation: window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
-    events: telemetryQueue.splice(0, telemetryQueue.length),
-    summary: options.summary ?? undefined,
-  };
-
-  const body = JSON.stringify(payload);
-
-  if (options.useBeacon) {
-    try {
-      if ('sendBeacon' in navigator) {
-        navigator.sendBeacon('/api/collect', body);
-        return Promise.resolve();
-      }
-    } catch {
-      // fall back to fetch
-    }
-  }
-
-  return fetch('/api/collect', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body,
-    keepalive: true,
-  }).then(() => undefined, () => undefined);
-}
+const telemetry = createTelemetryClient({
+  shouldIgnore: () => !import.meta.env.PROD || isInternalDevice(),
+});
 
 function setupClientAnalytics() {
   const isMobileMq = window.matchMedia('(max-width: 900px)');
@@ -335,31 +251,28 @@ function setupClientAnalytics() {
     if (isMobile && !mobileBannerCaptured) {
       mobileBannerCaptured = true;
       captureAnalytics('mobile_warning_shown', { reason });
-      enqueueTelemetry('mobile_warning_shown', { reason });
+      telemetry.track('mobile_warning_shown', { reason });
     }
 
     const shouldShowRotatePrompt = isMobile && isPortrait;
     if (shouldShowRotatePrompt && !rotatePromptActive) {
       rotatePromptActive = true;
       captureAnalytics('rotate_prompt_shown', { reason });
-      enqueueTelemetry('rotate_prompt_shown', { reason });
+      telemetry.track('rotate_prompt_shown', { reason });
     } else if (!shouldShowRotatePrompt && rotatePromptActive) {
       rotatePromptActive = false;
       captureAnalytics('rotate_prompt_dismissed', { reason });
-      enqueueTelemetry('rotate_prompt_dismissed', { reason });
+      telemetry.track('rotate_prompt_dismissed', { reason });
     }
   };
 
   evaluate('init');
-  if (sessionStorage.getItem(trackingVisitSentKey) !== '1') {
-    sessionStorage.setItem(trackingVisitSentKey, '1');
-    enqueueTelemetry('visit', {
-      device_pixel_ratio: window.devicePixelRatio ?? 1,
-      screen_w: window.screen?.width ?? null,
-      screen_h: window.screen?.height ?? null,
-    });
-    void flushTelemetry();
-  }
+  telemetry.installGlobalTracking();
+  telemetry.ensureVisit({
+    device_pixel_ratio: window.devicePixelRatio ?? 1,
+    screen_w: window.screen?.width ?? null,
+    screen_h: window.screen?.height ?? null,
+  });
 
   const onChange = () => evaluate('viewport_change');
   try {
@@ -387,16 +300,15 @@ function setupClientAnalytics() {
         .sort((a, b) => b.seconds - a.seconds)
         .slice(0, 10);
 
-      void flushTelemetry({
+      void telemetry.flush({
         useBeacon: true,
-        summary: {
+        summary: telemetry.buildTimingSummary({
           interactions: interactionCount,
-          active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
           overlays,
           overlays_unique: overlaySummary.size,
           first_interaction_seconds:
             firstInteractionAtMs == null ? null : Math.round((firstInteractionAtMs - sessionStartMs) / 1000),
-        },
+        }),
       });
     },
     { passive: true }
@@ -1168,7 +1080,7 @@ function makeInteractive(container: Container, contentKey: string, app: Applicat
   let hoverStartedAt: number | null = null;
   container.on('pointerover', () => {
     hoverStartedAt = performance.now();
-    enqueueTelemetry('hover_start', { target: contentKey });
+    telemetry.track('hover_start', { target: contentKey });
     glowFilter.outerStrength = 3;
     glowFilter.color = 0xffffff;
     container.scale.set(1.02);
@@ -1177,7 +1089,7 @@ function makeInteractive(container: Container, contentKey: string, app: Applicat
   container.on('pointerout', () => {
     if (hoverStartedAt != null) {
       const seconds = Math.round(((performance.now() - hoverStartedAt) / 1000) * 10) / 10;
-      enqueueTelemetry('hover_end', { target: contentKey, seconds });
+      telemetry.track('hover_end', { target: contentKey, seconds });
       hoverStartedAt = null;
     }
     glowFilter.color = COLORS.glow;
@@ -1185,7 +1097,7 @@ function makeInteractive(container: Container, contentKey: string, app: Applicat
   });
 
   container.on('pointerdown', (_e: FederatedPointerEvent) => {
-    enqueueTelemetry('click_target', { target: contentKey });
+    telemetry.track('click_target', { target: contentKey });
     showOverlay(contentKey);
   });
 }
@@ -1211,7 +1123,7 @@ function showOverlay(contentKey: string) {
   currentOverlayKey = contentKey;
   overlayOpenedAtMs = performance.now();
   captureAnalytics('open_overlay', { overlay: contentKey });
-  enqueueTelemetry('open_overlay', { overlay: contentKey });
+  telemetry.track('open_overlay', { overlay: contentKey });
 
   const overlayContent = overlay.querySelector('.overlay-content') as HTMLElement | null;
   if (overlayContent) {
@@ -1283,7 +1195,7 @@ function setupOverlay() {
         total_scroll_px: scroll ? Math.round(scroll.totalPx) : 0,
       });
 
-      enqueueTelemetry('close_overlay', {
+      telemetry.track('close_overlay', {
         overlay: overlayKey,
         reason,
         open_seconds: openSeconds,
@@ -1293,7 +1205,7 @@ function setupOverlay() {
       });
     } else {
       captureAnalytics('close_overlay', { overlay: overlayKey ?? 'unknown', reason });
-      enqueueTelemetry('close_overlay', { overlay: overlayKey ?? 'unknown', reason });
+      telemetry.track('close_overlay', { overlay: overlayKey ?? 'unknown', reason });
     }
   };
 

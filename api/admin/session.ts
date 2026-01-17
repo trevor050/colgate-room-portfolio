@@ -62,6 +62,8 @@ export default async function handler(req: any, res: any) {
     referrer_host: safeHostFromUrl(sessionRow.referrer ?? undefined) ?? null,
     page: sessionRow.page,
     active_seconds: sessionRow.active_seconds,
+    idle_seconds: sessionRow.idle_seconds,
+    session_seconds: sessionRow.session_seconds,
     interactions: sessionRow.interactions,
     first_interaction_seconds: sessionRow.first_interaction_seconds,
     overlays: sessionRow.overlays,

@@ -51,6 +51,8 @@ export function ensureSchema(): Promise<void> {
           first_interaction_seconds INTEGER,
           interactions INTEGER,
           active_seconds INTEGER,
+          idle_seconds INTEGER,
+          session_seconds INTEGER,
           overlays JSONB,
           overlays_unique INTEGER,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -66,6 +68,8 @@ export function ensureSchema(): Promise<void> {
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_error_at TIMESTAMPTZ;`);
 
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ptr TEXT;`);
+      await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS idle_seconds INTEGER;`);
+      await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_seconds INTEGER;`);
 
       await query(`
         CREATE TABLE IF NOT EXISTS events (

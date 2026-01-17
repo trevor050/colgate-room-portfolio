@@ -212,6 +212,8 @@ export default function handler(_req: any, res: any) {
             const who=s.org || s.ptr || s.ip || '';
             const summaryBits=[];
             if(s.active_seconds!=null) summaryBits.push('active '+fmtSec(s.active_seconds));
+            if(s.idle_seconds!=null) summaryBits.push('idle '+fmtSec(s.idle_seconds));
+            if(s.session_seconds!=null) summaryBits.push('total '+fmtSec(s.session_seconds));
             if(s.interactions!=null) summaryBits.push('actions '+s.interactions);
             if(s.overlays_unique!=null) summaryBits.push('sections '+s.overlays_unique);
             const device=(s.is_mobile===true?'mobile':'desktop')+(s.orientation?' ('+s.orientation+')':'');
@@ -339,11 +341,78 @@ export default function handler(_req: any, res: any) {
 
         const kpis=[];
         kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.active_seconds)+'</div><div class=\"l\">active time</div></div>');
+        if (s.idle_seconds != null) kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.idle_seconds)+'</div><div class=\"l\">idle time</div></div>');
+        if (s.session_seconds != null) kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.session_seconds)+'</div><div class=\"l\">total time</div></div>');
         kpis.push('<div class=\"kpi\"><div class=\"n\">'+(s.interactions!=null?s.interactions:'—')+'</div><div class=\"l\">actions</div></div>');
         kpis.push('<div class=\"kpi\"><div class=\"n\">'+(Array.isArray(s.overlays)?s.overlays.length:0)+'</div><div class=\"l\">sections visited</div></div>');
         kpis.push('<div class=\"kpi\"><div class=\"n\">'+(s.is_mobile?'mobile':'desktop')+'</div><div class=\"l\">device</div></div>');
 
-        const header=headerBits.join('')+'<div class=\"kpis\">'+kpis.join('')+'</div>';
+	        const header=headerBits.join('')+'<div class=\"kpis\">'+kpis.join('')+'</div>';
+
+	        // Breakdowns
+	        const clickCounts = new Map();
+	        const hoverSeconds = new Map();
+	        const sectionDwell = new Map();
+	        const sectionScroll = new Map(); // overlay -> max scroll pct
+
+	        for (const e of events) {
+	          const d = e && e.data ? e.data : null;
+	          if (!d || typeof d !== 'object') continue;
+
+	          if (e.type === 'click_target') {
+	            const t = d.target;
+	            if (typeof t === 'string' && t) clickCounts.set(t, (clickCounts.get(t) || 0) + 1);
+	          }
+	          if (e.type === 'hover_end') {
+	            const t = d.target;
+	            const sec = d.seconds;
+	            if (typeof t === 'string' && t && typeof sec === 'number' && Number.isFinite(sec)) {
+	              hoverSeconds.set(t, (hoverSeconds.get(t) || 0) + sec);
+	            }
+	          }
+	          if (e.type === 'close_overlay') {
+	            const o = d.overlay;
+	            const dwell = d.dwell_s;
+	            const sc = d.max_scroll_pct;
+	            if (typeof o === 'string' && o) {
+	              if (typeof dwell === 'number' && Number.isFinite(dwell)) sectionDwell.set(o, (sectionDwell.get(o) || 0) + dwell);
+	              if (typeof sc === 'number' && Number.isFinite(sc)) sectionScroll.set(o, Math.max(sectionScroll.get(o) || 0, sc));
+	            }
+	          }
+	        }
+
+	        function topEntries(map, n) {
+	          return Array.from(map.entries()).sort((a,b)=>b[1]-a[1]).slice(0,n);
+	        }
+
+	        const topClicks = topEntries(clickCounts, 8);
+	        const topHover = topEntries(hoverSeconds, 8);
+	        const topSections = topEntries(sectionDwell, 8);
+
+	        const breakdownHtml = [
+	          '<div style=\"margin-top:12px\" class=\"split\">',
+	            '<div>',
+	              '<div class=\"row\" style=\"margin-bottom:8px\">Sections</div>',
+	              (topSections.length ? (
+	                '<table><thead><tr><th>Section</th><th>Time</th><th>Max scroll</th></tr></thead><tbody>' +
+	                  topSections.map(([k,v]) => '<tr><td class=\"mono\">'+k+'</td><td>'+fmtSec(v)+'</td><td>'+(sectionScroll.has(k)?(sectionScroll.get(k)+'%'):'—')+'</td></tr>').join('') +
+	                '</tbody></table>'
+	              ) : '<div class=\"row\">No section data yet.</div>'),
+	            '</div>',
+	            '<div>',
+	              '<div class=\"row\" style=\"margin-bottom:8px\">Objects</div>',
+	              ((topClicks.length || topHover.length) ? (
+	                '<table><thead><tr><th>Target</th><th>Clicks</th><th>Hover</th></tr></thead><tbody>' +
+	                  Array.from(new Set([...topClicks.map(x=>x[0]), ...topHover.map(x=>x[0])])).slice(0,10).map((k) => {
+	                    const c = clickCounts.get(k) || 0;
+	                    const h = hoverSeconds.get(k) || 0;
+	                    return '<tr><td class=\"mono\">'+k+'</td><td>'+(c||'—')+'</td><td>'+(h?fmtSec(h):'—')+'</td></tr>';
+	                  }).join('') +
+	                '</tbody></table>'
+	              ) : '<div class=\"row\">No object interactions yet.</div>'),
+	            '</div>',
+	          '</div>'
+	        ].join('');
 
         const timeline=events.slice(0,800).map((e)=>{
           const x=humanizeEvent(e);
@@ -355,8 +424,8 @@ export default function handler(_req: any, res: any) {
           return t+'  '+e.type+(data?('  '+data):'');
         }).join('\\n');
 
-        $('details').innerHTML=header+'<div style=\"margin-top:12px\">'+(state.raw?('<div class=\"pre\">'+(raw||'(none)')+'</div>'):('<div class=\"timeline\">'+(timeline||'<div class=\"row\">No events yet.</div>')+'</div>'))+'</div>';
-      }
+	        $('details').innerHTML=header+breakdownHtml+'<div style=\"margin-top:12px\">'+(state.raw?('<div class=\"pre\">'+(raw||'(none)')+'</div>'):('<div class=\"timeline\">'+(timeline||'<div class=\"row\">No events yet.</div>')+'</div>'))+'</div>';
+	      }
 
       $('btnSessions').addEventListener('click', async ()=>{
         state.view='sessions';
