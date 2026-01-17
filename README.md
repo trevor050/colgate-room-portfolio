@@ -22,3 +22,8 @@ All portfolio text/content lives in `src/content.ts`.
 
 - Vercel Analytics: enabled in `src/main.ts`
 - PostHog: set `VITE_PUBLIC_POSTHOG_KEY` and `VITE_PUBLIC_POSTHOG_HOST` (see `.env`)
+
+### Tracking links (optional)
+
+- Per-college links: add `?college=colgate` (or any value) to tag sessions.
+- Exclude your own device: visit `?internal=1` once (to re-enable: `?internal=0`).

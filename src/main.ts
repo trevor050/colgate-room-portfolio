@@ -12,6 +12,21 @@ if (import.meta.env.PROD) {
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY as string | undefined;
 const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST as string | undefined;
 if (import.meta.env.PROD && posthogKey) {
+  const url = new URL(window.location.href);
+  const params = url.searchParams;
+
+  // Manual opt-out for your own devices (since IP/geo-based filtering is unreliable client-side).
+  // - `?internal=1` opts this browser out and persists via localStorage.
+  // - `?internal=0` opts back in and removes the flag.
+  const internalParam = params.get('internal');
+  if (internalParam === '1' || internalParam === 'true') {
+    localStorage.setItem('ph_internal', '1');
+  } else if (internalParam === '0' || internalParam === 'false') {
+    localStorage.removeItem('ph_internal');
+  }
+
+  const isInternal = localStorage.getItem('ph_internal') === '1';
+
   posthog.init(posthogKey, {
     api_host: posthogHost ?? 'https://us.i.posthog.com',
     capture_pageview: true,
@@ -22,6 +37,18 @@ if (import.meta.env.PROD && posthogKey) {
       ph.capture('site_loaded');
     },
   });
+
+  // Tag sessions when you share a per-college link like `?college=colgate`.
+  const college = params.get('college');
+  if (college) {
+    posthog.register_for_session({ college });
+  }
+
+  if (isInternal) {
+    posthog.opt_out_capturing();
+  } else {
+    posthog.opt_in_capturing();
+  }
 }
 
 // Room dimensions
@@ -955,6 +982,10 @@ function showOverlay(contentKey: string) {
   }
   
   overlay.classList.add('visible');
+
+  if (import.meta.env.PROD && posthogKey) {
+    posthog.capture('open_overlay', { overlay: contentKey });
+  }
 }
 
 function setupOverlay() {
