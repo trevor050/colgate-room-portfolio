@@ -22,6 +22,7 @@ All portfolio text/content lives in `src/content.ts`.
 
 - Vercel Analytics: enabled in `src/main.ts`
 - PostHog: set `VITE_PUBLIC_POSTHOG_KEY` (see `.env`)
+- Discord visit reports (server-side): set `DISCORD_WEBHOOK_URL` in Vercel env (do not commit)
 
 ### Tracking links (optional)
 
@@ -34,3 +35,10 @@ PostHog is proxied through `/_i/*` to reduce third‑party blocking:
 
 - Dev: proxied via `vite.config.ts`
 - Prod: proxied via `vercel.json`
+
+### Discord visit reports (optional)
+
+Serverless endpoint `api/report.ts` can send a Discord message on `visit` and `session_end`.
+
+- Set `DISCORD_WEBHOOK_URL` in Vercel → Project → Settings → Environment Variables
+- (Optional) Set `REPORT_ALLOWED_HOSTS` to your domains to reduce spam

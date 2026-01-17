@@ -221,6 +221,47 @@ function captureAnalytics(event: string, properties: Record<string, unknown> = {
   }
 }
 
+function sendVisitReport(event: 'visit' | 'session_end', payload: Record<string, unknown>) {
+  if (!import.meta.env.PROD) return;
+
+  // Skip if user opted out (your own devices).
+  if (localStorage.getItem('ph_internal') === '1') return;
+
+  const url = new URL(window.location.href);
+  const sidKey = 'visit_sid';
+  const sid =
+    sessionStorage.getItem(sidKey) ??
+    (crypto.randomUUID?.() ?? `sid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
+  sessionStorage.setItem(sidKey, sid);
+
+  const body = JSON.stringify({
+    event,
+    sid,
+    page: url.pathname + url.search,
+    referrer: document.referrer || undefined,
+    is_mobile: window.matchMedia('(max-width: 900px)').matches,
+    orientation: window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
+    ...payload,
+  });
+
+  try {
+    // Use beacon when possible (survives tab close); otherwise keepalive fetch.
+    if (event === 'session_end' && 'sendBeacon' in navigator) {
+      navigator.sendBeacon('/api/report', body);
+      return;
+    }
+  } catch {
+    // fall through to fetch
+  }
+
+  fetch('/api/report', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
 function setupClientAnalytics() {
   const isMobileMq = window.matchMedia('(max-width: 900px)');
   const isPortraitMq = window.matchMedia('(orientation: portrait)');
@@ -248,6 +289,7 @@ function setupClientAnalytics() {
   };
 
   evaluate('init');
+  sendVisitReport('visit', { ts: new Date().toISOString() });
 
   const onChange = () => evaluate('viewport_change');
   try {
@@ -268,6 +310,12 @@ function setupClientAnalytics() {
       captureAnalytics('session_summary', {
         interactions: interactionCount,
         active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
+      });
+
+      sendVisitReport('session_end', {
+        interactions: interactionCount,
+        active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
+        ts: new Date().toISOString(),
       });
     },
     { passive: true }
