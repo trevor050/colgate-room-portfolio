@@ -1,4 +1,4 @@
-import { getHeader } from './http';
+import { getHeader } from './http.js';
 
 export function getAuthToken(req: any): string | null {
   const auth = getHeader(req, 'authorization');
@@ -25,4 +25,3 @@ export function requireAdmin(req: any, res: any): boolean {
 
   return true;
 }
-

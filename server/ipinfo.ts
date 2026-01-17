@@ -1,4 +1,4 @@
-import { query } from './db';
+import { query } from './db.js';
 
 function isPrivateIp(ip: string): boolean {
   if (ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('127.')) return true;
@@ -58,4 +58,3 @@ export async function fetchAndCacheIpinfo(ip: string): Promise<{ data: any | nul
     return { data: null, error: message };
   }
 }
-

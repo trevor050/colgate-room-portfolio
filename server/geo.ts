@@ -1,4 +1,4 @@
-import { getHeader } from './http';
+import { getHeader } from './http.js';
 
 function decodeIfNeeded(value: string | undefined): string | undefined {
   if (!value) return undefined;
@@ -23,4 +23,3 @@ export function getVercelGeo(req: any) {
     asName: decodeIfNeeded(getHeader(req, 'x-vercel-ip-as-name')),
   };
 }
-

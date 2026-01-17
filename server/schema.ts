@@ -1,4 +1,4 @@
-import { query } from './db';
+import { query } from './db.js';
 
 let schemaReady: Promise<void> | null = null;
 
@@ -90,4 +90,3 @@ export function ensureSchema(): Promise<void> {
 
   return schemaReady;
 }
-

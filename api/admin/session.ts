@@ -1,7 +1,7 @@
-import { requireAdmin } from '../../server/admin';
-import { ensureSchema } from '../../server/schema';
-import { query, getPool } from '../../server/db';
-import { safeHostFromUrl } from '../../server/http';
+import { requireAdmin } from '../../server/admin.js';
+import { ensureSchema } from '../../server/schema.js';
+import { query, getPool } from '../../server/db.js';
+import { safeHostFromUrl } from '../../server/http.js';
 
 export default async function handler(req: any, res: any) {
   if (!requireAdmin(req, res)) return;
@@ -70,4 +70,3 @@ export default async function handler(req: any, res: any) {
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify({ session, events: eventsRes.rows }));
 }
-

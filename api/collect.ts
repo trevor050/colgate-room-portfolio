@@ -1,5 +1,5 @@
-import { ensureSchema } from '../server/schema';
-import { query, getPool } from '../server/db';
+import { ensureSchema } from '../server/schema.js';
+import { query, getPool } from '../server/db.js';
 import {
   allowedHosts,
   getClientIp,
@@ -7,10 +7,10 @@ import {
   readRawBody,
   safeHostFromUrl,
   sameSiteRequest,
-} from '../server/http';
-import { getVercelGeo } from '../server/geo';
-import { computeBotScore } from '../server/bot';
-import { fetchAndCacheIpinfo, getIpinfoCached } from '../server/ipinfo';
+} from '../server/http.js';
+import { getVercelGeo } from '../server/geo.js';
+import { computeBotScore } from '../server/bot.js';
+import { fetchAndCacheIpinfo, getIpinfoCached } from '../server/ipinfo.js';
 
 type IncomingEvent = {
   type: string;
