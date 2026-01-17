@@ -503,7 +503,7 @@ export default function handler(_req: any, res: any) {
             const token=getToken();
             const val=($('dnInput') && $('dnInput').value) ? $('dnInput').value : '';
             try{
-              const r=await fetch('/api/admin/visitor_update',{
+              const r=await fetch('/api/admin/visitor',{
                 method:'POST',
                 headers:{
                   'content-type':'application/json',
