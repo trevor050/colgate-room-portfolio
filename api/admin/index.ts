@@ -23,7 +23,8 @@ export default function handler(_req: any, res: any) {
         --blue:#8ab4f8;
         font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
       }
-      body{margin:0;background:radial-gradient(1200px 700px at 30% 10%,#182045,#0b1020);color:var(--text)}
+      html,body{height:100%}
+      body{margin:0;min-height:100vh;background:radial-gradient(1200px 700px at 30% 10%,#182045,#0b1020);background-repeat:no-repeat;background-attachment:fixed;color:var(--text)}
       .wrap{max-width:1180px;margin:0 auto;padding:24px}
       header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
       h1{margin:0;font-size:18px;letter-spacing:.3px}
@@ -1046,13 +1047,18 @@ export default function handler(_req: any, res: any) {
 	        state.mapShowBots=e.target.checked;
 	        if(state.view==='map') await loadMap();
 	      });
-	      $('search').addEventListener('input',(e)=>{ state.search=e.target.value||''; render(); });
+        let searchTimer=null;
+	      $('search').addEventListener('input',(e)=>{
+          state.search=e.target.value||'';
+          if(searchTimer) clearTimeout(searchTimer);
+          searchTimer=setTimeout(()=>render(), 120);
+        });
         async function refreshCurrent(){
+          if(state.view==='map') return;
           if(state.view==='dashboard') await loadOverview();
           else if(state.view==='sessions') await loadSessions();
           else if(state.view==='visitors') await loadVisitors();
           else if(state.view==='bots') await loadBots();
-          else if(state.view==='map') await loadMap();
           else render();
         }
 	      $('refresh').addEventListener('click', async ()=>{ await refreshCurrent(); });
@@ -1065,6 +1071,8 @@ export default function handler(_req: any, res: any) {
           refreshTimer=setInterval(()=>{
             if(document.hidden) return;
             if(state.view==='map') return;
+            const active=document.activeElement;
+            if(active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.isContentEditable)) return;
             void refreshCurrent();
           }, 25000);
         }
