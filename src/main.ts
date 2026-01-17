@@ -9,21 +9,25 @@ if (import.meta.env.PROD) {
   inject();
 }
 
+// Manual opt-out for your own devices (since IP/geo-based filtering is unreliable client-side).
+// - `?internal=1` opts this browser out and persists via localStorage.
+// - `?internal=0` opts back in and removes the flag.
+if (import.meta.env.PROD) {
+  try {
+    const params = new URL(window.location.href).searchParams;
+    const internalParam = params.get('internal');
+    if (internalParam === '1' || internalParam === 'true') {
+      localStorage.setItem('ph_internal', '1');
+    } else if (internalParam === '0' || internalParam === 'false') {
+      localStorage.removeItem('ph_internal');
+    }
+  } catch {
+    // noop
+  }
+}
+
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY as string | undefined;
 if (import.meta.env.PROD && posthogKey) {
-  const url = new URL(window.location.href);
-  const params = url.searchParams;
-
-  // Manual opt-out for your own devices (since IP/geo-based filtering is unreliable client-side).
-  // - `?internal=1` opts this browser out and persists via localStorage.
-  // - `?internal=0` opts back in and removes the flag.
-  const internalParam = params.get('internal');
-  if (internalParam === '1' || internalParam === 'true') {
-    localStorage.setItem('ph_internal', '1');
-  } else if (internalParam === '0' || internalParam === 'false') {
-    localStorage.removeItem('ph_internal');
-  }
-
   const isInternal = localStorage.getItem('ph_internal') === '1';
 
   posthog.init(posthogKey, {
@@ -41,12 +45,6 @@ if (import.meta.env.PROD && posthogKey) {
       ph.capture('site_loaded');
     },
   });
-
-  // Tag sessions when you share a per-college link like `?college=colgate`.
-  const college = params.get('college');
-  if (college) {
-    posthog.register_for_session({ college });
-  }
 
   if (isInternal) {
     posthog.opt_out_capturing();
@@ -66,6 +64,9 @@ let interactionCount = 0;
 const sessionStartMs = performance.now();
 let firstInteractionAtMs: number | null = null;
 const overlaySummary: Map<string, number> = new Map();
+let overlayScrollStats:
+  | { maxPct: number; totalPx: number; maxSpeedPxPerSec: number; lastTop: number; lastTs: number }
+  | null = null;
 
 // Animation state
 interface AnimationState {
@@ -223,58 +224,101 @@ function captureAnalytics(event: string, properties: Record<string, unknown> = {
   }
 }
 
-function sendVisitReport(event: 'visit' | 'session_end', payload: Record<string, unknown>) {
-  if (!import.meta.env.PROD) return;
+type TelemetryEvent = { type: string; ts: string; seq: number; data?: Record<string, unknown> };
 
-  // Skip if user opted out (your own devices).
-  if (localStorage.getItem('ph_internal') === '1') return;
+let telemetrySeq = 0;
+const telemetryQueue: TelemetryEvent[] = [];
+let telemetryFlushTimer: number | null = null;
 
-  const url = new URL(window.location.href);
-  const sidKey = 'visit_sid';
-  const visitSentKey = 'visit_reported';
+const trackingSidKey = 'visit_sid';
+const trackingVidKey = 'visit_vid';
+const trackingVisitSentKey = 'visit_reported';
+
+function isInternalDevice(): boolean {
+  try {
+    return localStorage.getItem('ph_internal') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function getTrackingIds(): { vid: string; sid: string } {
   const sid =
-    sessionStorage.getItem(sidKey) ??
+    sessionStorage.getItem(trackingSidKey) ??
     (crypto.randomUUID?.() ?? `sid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
-  sessionStorage.setItem(sidKey, sid);
+  sessionStorage.setItem(trackingSidKey, sid);
 
-  if (event === 'visit') {
-    if (sessionStorage.getItem(visitSentKey) === '1') return;
-    sessionStorage.setItem(visitSentKey, '1');
+  const vid =
+    localStorage.getItem(trackingVidKey) ??
+    (crypto.randomUUID?.() ?? `vid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
+  localStorage.setItem(trackingVidKey, vid);
+
+  return { vid, sid };
+}
+
+function enqueueTelemetry(type: string, data: Record<string, unknown> = {}) {
+  if (!import.meta.env.PROD) return;
+  if (isInternalDevice()) return;
+
+  telemetryQueue.push({
+    type,
+    ts: new Date().toISOString(),
+    seq: telemetrySeq++,
+    data,
+  });
+
+  if (telemetryQueue.length >= 25) {
+    void flushTelemetry();
+    return;
   }
 
-  const vidKey = 'visit_vid';
-  const vid =
-    localStorage.getItem(vidKey) ??
-    (crypto.randomUUID?.() ?? `vid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
-  localStorage.setItem(vidKey, vid);
+  if (telemetryFlushTimer == null) {
+    telemetryFlushTimer = window.setTimeout(() => {
+      telemetryFlushTimer = null;
+      void flushTelemetry();
+    }, 2500);
+  }
+}
 
-  const body = JSON.stringify({
-    event,
-    sid,
+function flushTelemetry(options: { summary?: Record<string, unknown>; useBeacon?: boolean } = {}) {
+  if (!import.meta.env.PROD) return Promise.resolve();
+  if (isInternalDevice()) return Promise.resolve();
+
+  if (!telemetryQueue.length && !options.summary) return Promise.resolve();
+
+  const { vid, sid } = getTrackingIds();
+  const url = new URL(window.location.href);
+
+  const payload = {
     vid,
+    sid,
     page: url.pathname + url.search,
     referrer: document.referrer || undefined,
     is_mobile: window.matchMedia('(max-width: 900px)').matches,
     orientation: window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
-    ...payload,
-  });
+    events: telemetryQueue.splice(0, telemetryQueue.length),
+    summary: options.summary ?? undefined,
+  };
 
-  try {
-    // Use beacon when possible (survives tab close); otherwise keepalive fetch.
-    if (event === 'session_end' && 'sendBeacon' in navigator) {
-      navigator.sendBeacon('/api/report', body);
-      return;
+  const body = JSON.stringify(payload);
+
+  if (options.useBeacon) {
+    try {
+      if ('sendBeacon' in navigator) {
+        navigator.sendBeacon('/api/collect', body);
+        return Promise.resolve();
+      }
+    } catch {
+      // fall back to fetch
     }
-  } catch {
-    // fall through to fetch
   }
 
-  fetch('/api/report', {
+  return fetch('/api/collect', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body,
     keepalive: true,
-  }).catch(() => {});
+  }).then(() => undefined, () => undefined);
 }
 
 function setupClientAnalytics() {
@@ -291,20 +335,31 @@ function setupClientAnalytics() {
     if (isMobile && !mobileBannerCaptured) {
       mobileBannerCaptured = true;
       captureAnalytics('mobile_warning_shown', { reason });
+      enqueueTelemetry('mobile_warning_shown', { reason });
     }
 
     const shouldShowRotatePrompt = isMobile && isPortrait;
     if (shouldShowRotatePrompt && !rotatePromptActive) {
       rotatePromptActive = true;
       captureAnalytics('rotate_prompt_shown', { reason });
+      enqueueTelemetry('rotate_prompt_shown', { reason });
     } else if (!shouldShowRotatePrompt && rotatePromptActive) {
       rotatePromptActive = false;
       captureAnalytics('rotate_prompt_dismissed', { reason });
+      enqueueTelemetry('rotate_prompt_dismissed', { reason });
     }
   };
 
   evaluate('init');
-  sendVisitReport('visit', { ts: new Date().toISOString(), first_interaction_seconds: null });
+  if (sessionStorage.getItem(trackingVisitSentKey) !== '1') {
+    sessionStorage.setItem(trackingVisitSentKey, '1');
+    enqueueTelemetry('visit', {
+      device_pixel_ratio: window.devicePixelRatio ?? 1,
+      screen_w: window.screen?.width ?? null,
+      screen_h: window.screen?.height ?? null,
+    });
+    void flushTelemetry();
+  }
 
   const onChange = () => evaluate('viewport_change');
   try {
@@ -332,14 +387,16 @@ function setupClientAnalytics() {
         .sort((a, b) => b.seconds - a.seconds)
         .slice(0, 10);
 
-      sendVisitReport('session_end', {
-        interactions: interactionCount,
-        active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
-        overlays,
-        overlays_unique: overlaySummary.size,
-        first_interaction_seconds:
-          firstInteractionAtMs == null ? null : Math.round((firstInteractionAtMs - sessionStartMs) / 1000),
-        ts: new Date().toISOString(),
+      void flushTelemetry({
+        useBeacon: true,
+        summary: {
+          interactions: interactionCount,
+          active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
+          overlays,
+          overlays_unique: overlaySummary.size,
+          first_interaction_seconds:
+            firstInteractionAtMs == null ? null : Math.round((firstInteractionAtMs - sessionStartMs) / 1000),
+        },
       });
     },
     { passive: true }
@@ -1108,18 +1165,27 @@ function makeInteractive(container: Container, contentKey: string, app: Applicat
     glowFilter.outerStrength = 1.2 + Math.sin(time) * 0.5;
   });
 
+  let hoverStartedAt: number | null = null;
   container.on('pointerover', () => {
+    hoverStartedAt = performance.now();
+    enqueueTelemetry('hover_start', { target: contentKey });
     glowFilter.outerStrength = 3;
     glowFilter.color = 0xffffff;
     container.scale.set(1.02);
   });
 
   container.on('pointerout', () => {
+    if (hoverStartedAt != null) {
+      const seconds = Math.round(((performance.now() - hoverStartedAt) / 1000) * 10) / 10;
+      enqueueTelemetry('hover_end', { target: contentKey, seconds });
+      hoverStartedAt = null;
+    }
     glowFilter.color = COLORS.glow;
     container.scale.set(1);
   });
 
   container.on('pointerdown', (_e: FederatedPointerEvent) => {
+    enqueueTelemetry('click_target', { target: contentKey });
     showOverlay(contentKey);
   });
 }
@@ -1145,11 +1211,55 @@ function showOverlay(contentKey: string) {
   currentOverlayKey = contentKey;
   overlayOpenedAtMs = performance.now();
   captureAnalytics('open_overlay', { overlay: contentKey });
+  enqueueTelemetry('open_overlay', { overlay: contentKey });
+
+  const overlayContent = overlay.querySelector('.overlay-content') as HTMLElement | null;
+  if (overlayContent) {
+    overlayScrollStats = {
+      maxPct: 0,
+      totalPx: 0,
+      maxSpeedPxPerSec: 0,
+      lastTop: overlayContent.scrollTop,
+      lastTs: performance.now(),
+    };
+  } else {
+    overlayScrollStats = null;
+  }
 }
 
 function setupOverlay() {
   const overlay = document.getElementById('overlay')!;
   const closeBtn = document.getElementById('close-overlay')!;
+  const overlayContent = overlay.querySelector('.overlay-content') as HTMLElement | null;
+
+  if (overlayContent) {
+    overlayContent.addEventListener(
+      'scroll',
+      () => {
+        if (!overlay.classList.contains('visible')) return;
+        if (!overlayScrollStats) return;
+
+        const maxScroll = overlayContent.scrollHeight - overlayContent.clientHeight;
+        const pct = maxScroll > 0 ? overlayContent.scrollTop / maxScroll : 0;
+        overlayScrollStats.maxPct = Math.max(overlayScrollStats.maxPct, pct);
+
+        const now = performance.now();
+        const deltaPx = overlayContent.scrollTop - overlayScrollStats.lastTop;
+        const dt = (now - overlayScrollStats.lastTs) / 1000;
+        if (dt > 0) {
+          overlayScrollStats.maxSpeedPxPerSec = Math.max(
+            overlayScrollStats.maxSpeedPxPerSec,
+            Math.abs(deltaPx) / dt
+          );
+        }
+
+        overlayScrollStats.totalPx += Math.abs(deltaPx);
+        overlayScrollStats.lastTop = overlayContent.scrollTop;
+        overlayScrollStats.lastTs = now;
+      },
+      { passive: true }
+    );
+  }
 
   const hide = (reason: string) => {
     if (!overlay.classList.contains('visible')) return;
@@ -1157,8 +1267,10 @@ function setupOverlay() {
 
     const overlayKey = currentOverlayKey;
     const openedAt = overlayOpenedAtMs;
+    const scroll = overlayScrollStats;
     currentOverlayKey = null;
     overlayOpenedAtMs = null;
+    overlayScrollStats = null;
 
     if (overlayKey && openedAt != null) {
       const openSeconds = Math.round((performance.now() - openedAt) / 1000);
@@ -1167,9 +1279,21 @@ function setupOverlay() {
         overlay: overlayKey,
         reason,
         open_seconds: openSeconds,
+        max_scroll_pct: scroll ? Math.round(scroll.maxPct * 1000) / 1000 : 0,
+        total_scroll_px: scroll ? Math.round(scroll.totalPx) : 0,
+      });
+
+      enqueueTelemetry('close_overlay', {
+        overlay: overlayKey,
+        reason,
+        open_seconds: openSeconds,
+        max_scroll_pct: scroll ? Math.round(scroll.maxPct * 1000) / 1000 : 0,
+        total_scroll_px: scroll ? Math.round(scroll.totalPx) : 0,
+        max_scroll_speed_px_s: scroll ? Math.round(scroll.maxSpeedPxPerSec) : 0,
       });
     } else {
       captureAnalytics('close_overlay', { overlay: overlayKey ?? 'unknown', reason });
+      enqueueTelemetry('close_overlay', { overlay: overlayKey ?? 'unknown', reason });
     }
   };
 

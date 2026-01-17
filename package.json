@@ -9,11 +9,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/node": "^25.0.9",
+    "@types/pg": "^8.16.0",
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
+    "pg": "^8.17.1",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.15.0",
     "posthog-js": "^1.326.0"

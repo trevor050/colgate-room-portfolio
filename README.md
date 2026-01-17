@@ -20,14 +20,31 @@ All portfolio text/content lives in `src/content.ts`.
 
 ## Analytics
 
+This project supports both third‑party analytics (optional) and a first‑party “internal” tracker.
+
+### First-party analytics (recommended)
+
+First‑party analytics is collected by Vercel Functions and stored in Postgres:
+
+- Ingest: `POST /api/collect`
+- Admin dashboard: `/api/admin` (stores your token in `localStorage`)
+
+**Setup (Vercel)**
+
+- Set a Postgres connection string via `DATABASE_URL` (preferred) or Vercel’s `POSTGRES_URL*` env vars.
+- Set `ADMIN_TOKEN` (long random string).
+- Optional: set `IPINFO_TOKEN` to enrich non‑bot IPs (cached; skipped for bots).
+- Optional: set `REPORT_ALLOWED_HOSTS` to restrict `Origin`/`Referer` hosts.
+
+**Usage**
+
+- Exclude your own device: visit `/?internal=1` once (to re-enable: `/?internal=0`).
+- Bots are hidden by default in the dashboard; add `?bots=1` to include them.
+
+### Third-party analytics (optional)
+
 - Vercel Analytics: enabled in `src/main.ts`
-- PostHog: set `VITE_PUBLIC_POSTHOG_KEY` (see `.env`)
-- Discord visit reports (server-side): set `DISCORD_WEBHOOK_URL` in Vercel env (do not commit)
-
-### Tracking links (optional)
-
-- Per-college links: add `?college=colgate` (or any value) to tag sessions.
-- Exclude your own device: visit `?internal=1` once (to re-enable: `?internal=0`).
+- PostHog: set `VITE_PUBLIC_POSTHOG_KEY` (see `.env.example`)
 
 ### PostHog proxy (recommended)
 

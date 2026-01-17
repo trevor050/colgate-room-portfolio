@@ -1,0 +1,80 @@
+import { requireAdmin } from '../../server/admin';
+import { ensureSchema } from '../../server/schema';
+import { query, getPool } from '../../server/db';
+
+export default async function handler(req: any, res: any) {
+  if (!requireAdmin(req, res)) return;
+
+  if (!getPool()) {
+    res.statusCode = 503;
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({ error: 'DATABASE_URL not configured' }));
+    return;
+  }
+
+  await ensureSchema();
+
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const bots = url.searchParams.get('bots') === '1';
+
+  const { rows } = await query<any>(
+    `
+      SELECT
+        sid,
+        vid,
+        started_at,
+        ended_at,
+        ip,
+        is_bot,
+        bot_score,
+        bot_reasons,
+        is_mobile,
+        orientation,
+        active_seconds,
+        interactions,
+        overlays_unique,
+        geo,
+        ipinfo,
+        user_agent
+      FROM sessions
+      WHERE ($1::boolean IS TRUE) OR (COALESCE(is_bot, FALSE) = FALSE)
+      ORDER BY started_at DESC
+      LIMIT 250
+    `,
+    [bots]
+  );
+
+  const sessions = rows.map((s: any) => {
+    const geo = s.geo ?? {};
+    const ipinfo = s.ipinfo ?? {};
+
+    return {
+      sid: s.sid,
+      vid: s.vid,
+      vid_short: typeof s.vid === 'string' ? s.vid.slice(0, 8) : '',
+      started_at: s.started_at,
+      ended_at: s.ended_at,
+      ip: s.ip,
+      is_bot: s.is_bot,
+      bot_score: s.bot_score,
+      bot_reasons: s.bot_reasons,
+      is_mobile: s.is_mobile,
+      orientation: s.orientation,
+      active_seconds: s.active_seconds,
+      interactions: s.interactions,
+      overlays_unique: s.overlays_unique,
+      city: geo.city ?? null,
+      region: geo.region ?? null,
+      country: geo.country ?? null,
+      asn: geo.asn ?? null,
+      as_name: geo.asName ?? null,
+      org: ipinfo.org ?? ipinfo.company?.name ?? null,
+      user_agent: s.user_agent ?? null,
+    };
+  });
+
+  res.statusCode = 200;
+  res.setHeader('content-type', 'application/json');
+  res.end(JSON.stringify({ sessions }));
+}
+
