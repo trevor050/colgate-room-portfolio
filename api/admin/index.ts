@@ -890,6 +890,11 @@ export default function handler(_req: any, res: any) {
           (s.ptr?('<span>PTR: <span class=\"mono\">'+s.ptr+'</span></span>'):'')+
           (s.ip?('<span>IP: <span class=\"mono\">'+s.ip+'</span></span>'):'')+
         '</div>');
+        if (s.session_cookie_id) {
+          headerBits.push('<div class=\"row\" style=\"margin-bottom:10px\">'+
+            '<span>Session cookie: <span class=\"mono\">'+s.session_cookie_id+'</span></span>'+
+          '</div>');
+        }
 
         const kpis=[];
         kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.active_seconds)+'</div><div class=\"l\">active time</div></div>');
@@ -966,6 +971,10 @@ export default function handler(_req: any, res: any) {
 	          '</div>'
 	        ].join('');
 
+        const ipHistory=(data.ip_history||[]).map((h)=>{
+          return '<tr><td class=\"mono\">'+(h.ip||'')+'</td><td>'+fmtDate(h.first_seen_at)+'</td><td>'+fmtDate(h.last_seen_at)+'</td><td>'+String(h.hit_count||0)+'</td></tr>';
+        }).join('');
+
         const timeline=events.slice(0,800).map((e)=>{
           const x=humanizeEvent(e);
           return '<div class=\"evt\"><div class=\"t\">'+(x.t||'')+'</div><div><div class=\"h\">'+x.h+'</div><div class=\"d\">'+(x.d||'')+'</div></div></div>';
@@ -976,7 +985,10 @@ export default function handler(_req: any, res: any) {
           return t+'  '+e.type+(data?('  '+data):'');
         }).join('\\n');
 
-	        $('details').innerHTML=header+breakdownHtml+'<div style=\"margin-top:12px\">'+(state.raw?('<div class=\"pre\">'+(raw||'(none)')+'</div>'):('<div class=\"timeline\">'+(timeline||'<div class=\"row\">No events yet.</div>')+'</div>'))+'</div>';
+	        const ipHtml = ipHistory
+	          ? '<div style=\"margin-top:12px\"><div class=\"row\" style=\"margin-bottom:8px\">IP changes</div><table><thead><tr><th>IP</th><th>First seen</th><th>Last seen</th><th>Hits</th></tr></thead><tbody>'+ipHistory+'</tbody></table></div>'
+	          : '';
+	        $('details').innerHTML=header+breakdownHtml+ipHtml+'<div style=\"margin-top:12px\">'+(state.raw?('<div class=\"pre\">'+(raw||'(none)')+'</div>'):('<div class=\"timeline\">'+(timeline||'<div class=\"row\">No events yet.</div>')+'</div>'))+'</div>';
 	      }
 
 	      function setView(view){

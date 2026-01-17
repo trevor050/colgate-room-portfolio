@@ -92,6 +92,7 @@ export default async function handler(req: any, res: any) {
 
     const vid = clampString(body?.vid, 128);
     const sid = clampString(body?.sid, 128);
+    const scid = clampString(body?.scid, 128);
     if (!vid || !sid) {
       res.statusCode = 400;
       res.end('Bad Request');
@@ -164,10 +165,10 @@ export default async function handler(req: any, res: any) {
     await query(
       `
         INSERT INTO sessions (
-          sid, vid, started_at, ip, user_agent, accept_language, referrer, page, is_mobile, orientation,
+          sid, vid, session_cookie_id, started_at, ip, user_agent, accept_language, referrer, page, is_mobile, orientation,
           geo, bot_score, bot_reasons, is_bot
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, $15)
         ON CONFLICT (sid) DO UPDATE SET
           updated_at = NOW(),
           ip = COALESCE(EXCLUDED.ip, sessions.ip),
@@ -180,11 +181,13 @@ export default async function handler(req: any, res: any) {
           geo = COALESCE(EXCLUDED.geo, sessions.geo),
           bot_score = GREATEST(COALESCE(sessions.bot_score, 0), EXCLUDED.bot_score),
           bot_reasons = COALESCE(NULLIF(EXCLUDED.bot_reasons, ''), sessions.bot_reasons),
-          is_bot = COALESCE(sessions.is_bot, EXCLUDED.is_bot)
+          is_bot = COALESCE(sessions.is_bot, EXCLUDED.is_bot),
+          session_cookie_id = COALESCE(sessions.session_cookie_id, EXCLUDED.session_cookie_id)
       `,
       [
         sid,
         vid,
+        scid ?? null,
         startedAt.toISOString(),
         ip ?? null,
         userAgent,
@@ -199,6 +202,19 @@ export default async function handler(req: any, res: any) {
         bot.isBot,
       ]
     );
+
+    if (ip) {
+      await query(
+        `
+          INSERT INTO session_ips (sid, ip, first_seen_at, last_seen_at, hit_count)
+          VALUES ($1, $2, NOW(), NOW(), 1)
+          ON CONFLICT (sid, ip) DO UPDATE SET
+            last_seen_at = NOW(),
+            hit_count = session_ips.hit_count + 1
+        `,
+        [sid, ip]
+      );
+    }
 
     if (events.length) {
       const values: any[] = [];

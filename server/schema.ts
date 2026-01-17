@@ -72,6 +72,7 @@ export function ensureSchema(): Promise<void> {
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ptr TEXT;`);
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS idle_seconds INTEGER;`);
       await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_seconds INTEGER;`);
+      await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS session_cookie_id TEXT;`);
 
       await query(`
         CREATE TABLE IF NOT EXISTS events (
@@ -84,6 +85,19 @@ export function ensureSchema(): Promise<void> {
           data JSONB
         );
       `);
+
+      await query(`
+        CREATE TABLE IF NOT EXISTS session_ips (
+          sid TEXT NOT NULL REFERENCES sessions(sid) ON DELETE CASCADE,
+          ip TEXT NOT NULL,
+          first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          hit_count INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (sid, ip)
+        );
+      `);
+
+      await query(`CREATE INDEX IF NOT EXISTS idx_session_ips_sid ON session_ips(sid);`);
 
       await query(`
         CREATE INDEX IF NOT EXISTS idx_events_sid_ts ON events(sid, ts);

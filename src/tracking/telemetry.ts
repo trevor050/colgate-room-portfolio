@@ -38,6 +38,7 @@ function safeJsonStringify(value: unknown, maxLen = 5000): string | undefined {
 
 const trackingSidKey = 'visit_sid';
 const trackingVidKey = 'visit_vid';
+const trackingSessionCookieKey = 'visit_scid';
 const trackingVisitSentKey = 'visit_reported';
 
 function readCookie(name: string): string | null {
@@ -56,6 +57,19 @@ function readCookie(name: string): string | null {
 function writeCookie(name: string, value: string) {
   const secure = location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+}
+
+function writeSessionCookie(name: string, value: string) {
+  const secure = location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax${secure}`;
+}
+
+function getSessionCookieId(): string {
+  const existing = readCookie(trackingSessionCookieKey);
+  if (existing) return existing;
+  const scid = crypto.randomUUID?.() ?? `scid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+  writeSessionCookie(trackingSessionCookieKey, scid);
+  return scid;
 }
 
 function getTrackingIds(persistVisitorId: 'localStorage' | 'cookie'): { vid: string; sid: string } {
@@ -168,9 +182,11 @@ export function createTelemetryClient(options: TelemetryClientOptions = {}) {
     if (!queue.length && !opts.summary) return Promise.resolve();
 
     const { vid, sid } = getTrackingIds(persistVisitorId);
+    const scid = getSessionCookieId();
     const payload = {
       vid,
       sid,
+      scid,
       page: getPage(),
       referrer: getReferrer(),
       is_mobile: isMobile(),

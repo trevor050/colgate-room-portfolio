@@ -49,6 +49,7 @@ export default async function handler(req: any, res: any) {
     sid: sessionRow.sid,
     vid: sessionRow.vid,
     display_name: null as string | null,
+    session_cookie_id: sessionRow.session_cookie_id ?? null,
     started_at: sessionRow.started_at,
     ended_at: sessionRow.ended_at,
     ip: sessionRow.ip,
@@ -78,7 +79,18 @@ export default async function handler(req: any, res: any) {
     session.display_name = null;
   }
 
+  const ipRes = await query<any>(
+    `
+      SELECT ip, first_seen_at, last_seen_at, hit_count
+      FROM session_ips
+      WHERE sid = $1
+      ORDER BY last_seen_at DESC
+      LIMIT 10
+    `,
+    [sid]
+  );
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ session, events: eventsRes.rows }));
+  res.end(JSON.stringify({ session, events: eventsRes.rows, ip_history: ipRes.rows }));
 }
