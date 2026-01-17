@@ -229,14 +229,27 @@ function sendVisitReport(event: 'visit' | 'session_end', payload: Record<string,
 
   const url = new URL(window.location.href);
   const sidKey = 'visit_sid';
+  const visitSentKey = 'visit_reported';
   const sid =
     sessionStorage.getItem(sidKey) ??
     (crypto.randomUUID?.() ?? `sid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
   sessionStorage.setItem(sidKey, sid);
 
+  if (event === 'visit') {
+    if (sessionStorage.getItem(visitSentKey) === '1') return;
+    sessionStorage.setItem(visitSentKey, '1');
+  }
+
+  const vidKey = 'visit_vid';
+  const vid =
+    localStorage.getItem(vidKey) ??
+    (crypto.randomUUID?.() ?? `vid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
+  localStorage.setItem(vidKey, vid);
+
   const body = JSON.stringify({
     event,
     sid,
+    vid,
     page: url.pathname + url.search,
     referrer: document.referrer || undefined,
     is_mobile: window.matchMedia('(max-width: 900px)').matches,
