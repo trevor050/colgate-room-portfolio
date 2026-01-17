@@ -24,8 +24,11 @@ export default async function handler(req: any, res: any) {
 
   await ensureSchema();
 
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const includeBots = url.searchParams.get('bots') === '1';
+
   // Latest human session per visitor, for mapping.
-  const { rows } = await query<any>(
+  const humansRes = await query<any>(
     `
       SELECT DISTINCT ON (s.vid)
         s.vid,
@@ -36,6 +39,9 @@ export default async function handler(req: any, res: any) {
         s.ptr,
         s.geo,
         s.ipinfo,
+        COALESCE(s.is_bot,false) AS is_bot,
+        s.bot_score,
+        s.bot_reasons,
         (SELECT COUNT(*)::int FROM sessions sx WHERE sx.vid = s.vid AND COALESCE(sx.is_bot,false)=false) AS sessions
       FROM sessions s
       JOIN visitors v ON v.vid = s.vid
@@ -44,6 +50,37 @@ export default async function handler(req: any, res: any) {
       LIMIT 500
     `
   );
+
+  let botRows: any[] = [];
+  if (includeBots) {
+    const botsRes = await query<any>(
+      `
+        SELECT DISTINCT ON (s.vid)
+          s.vid,
+          v.display_name,
+          s.sid,
+          s.started_at,
+          s.ip,
+          s.ptr,
+          s.geo,
+          COALESCE(s.is_bot,false) AS is_bot,
+          s.bot_score,
+          s.bot_reasons,
+          (SELECT COUNT(*)::int FROM sessions sx WHERE sx.vid = s.vid AND COALESCE(sx.is_bot,false)=true) AS sessions
+        FROM sessions s
+        JOIN visitors v ON v.vid = s.vid
+        WHERE COALESCE(s.is_bot,false)=true
+          AND NOT EXISTS (
+            SELECT 1 FROM sessions sh WHERE sh.vid = s.vid AND COALESCE(sh.is_bot,false)=false
+          )
+        ORDER BY s.vid, s.started_at DESC
+        LIMIT 500
+      `
+    );
+    botRows = botsRes.rows ?? [];
+  }
+
+  const rows = [...(humansRes.rows ?? []), ...botRows];
 
   const points = rows
     .map((r: any) => {
@@ -60,6 +97,9 @@ export default async function handler(req: any, res: any) {
         ip: r.ip ?? null,
         ptr: r.ptr ?? null,
         sessions: r.sessions ?? 0,
+        is_bot: Boolean(r.is_bot),
+        bot_score: r.bot_score ?? null,
+        bot_reasons: r.bot_reasons ?? null,
         city: geo.city ?? ipinfo.city ?? null,
         region: geo.region ?? ipinfo.region ?? null,
         country: geo.country ?? ipinfo.country ?? null,

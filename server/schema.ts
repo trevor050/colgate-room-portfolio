@@ -116,6 +116,36 @@ export function ensureSchema(): Promise<void> {
           error_at TIMESTAMPTZ
         );
       `);
+
+      await query(`
+        CREATE TABLE IF NOT EXISTS freeip_cache (
+          ip TEXT PRIMARY KEY,
+          data JSONB,
+          fetched_at TIMESTAMPTZ,
+          error TEXT,
+          error_at TIMESTAMPTZ
+        );
+      `);
+
+      await query(`
+        CREATE TABLE IF NOT EXISTS tracker_settings (
+          id INTEGER PRIMARY KEY,
+          retention_human_days INTEGER NOT NULL,
+          retention_bot_days INTEGER NOT NULL,
+          map_include_bots_default BOOLEAN NOT NULL DEFAULT false,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      await query(`ALTER TABLE tracker_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
+
+      await query(
+        `
+          INSERT INTO tracker_settings (id, retention_human_days, retention_bot_days, map_include_bots_default)
+          VALUES (1, 365, 30, false)
+          ON CONFLICT (id) DO NOTHING
+        `,
+      );
     })();
   }
 

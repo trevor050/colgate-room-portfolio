@@ -17,6 +17,7 @@ export default async function handler(req: any, res: any) {
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const sid = url.searchParams.get('sid');
+  const lite = url.searchParams.get('lite') === '1';
   if (!sid || sid.length > 128) {
     res.statusCode = 400;
     res.setHeader('content-type', 'application/json');
@@ -37,7 +38,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const eventsRes = await query<any>(
-    `SELECT ts, type, seq, data FROM events WHERE sid = $1 ORDER BY ts ASC LIMIT 2000`,
+    `SELECT ts, type, seq, data FROM events WHERE sid = $1 ORDER BY ts ASC LIMIT ${lite ? 250 : 2000}`,
     [sid]
   );
 

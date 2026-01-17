@@ -29,11 +29,16 @@ export default function handler(_req: any, res: any) {
       h1{margin:0;font-size:18px;letter-spacing:.3px}
       .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:rgba(0,0,0,.25);color:var(--muted);font-size:12px}
       .grid{display:grid;grid-template-columns:1fr;gap:14px}
+      @media (min-width: 980px){
+        .grid{grid-template-columns:1.35fr .85fr;align-items:start}
+      }
       .card{border:1px solid var(--border);border-radius:14px;background:var(--panel);box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden}
+      .detailsCard{position:sticky;top:16px}
       .hd{display:flex;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.18)}
       .bd{padding:14px 16px}
       .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
       .btn{border:1px solid var(--border);background:rgba(0,0,0,.2);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
+      .btn.icon{padding:8px 10px;min-width:40px}
       .btn.active{border-color:rgba(255,215,0,.35);box-shadow:0 0 0 3px rgba(255,215,0,.12)}
       .input{border:1px solid var(--border);background:rgba(0,0,0,.2);color:var(--text);padding:8px 10px;border-radius:10px;min-width:240px}
       .row{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:13px}
@@ -41,6 +46,10 @@ export default function handler(_req: any, res: any) {
       th,td{text-align:left;padding:10px 10px;border-bottom:1px solid rgba(255,255,255,.08);vertical-align:top}
       th{color:var(--muted);font-weight:600;font-size:12px}
       tr:hover td{background:rgba(255,255,255,.03);cursor:pointer}
+      tr.sel td{background:rgba(255,215,0,.08)}
+      tr.expand td{background:rgba(0,0,0,.22);cursor:default}
+      .split{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
+      @media (min-width: 980px){ .split{grid-template-columns:1fr 1fr} }
       .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18);color:var(--muted);font-size:12px}
       .tag.good{border-color:rgba(74,222,128,.25);color:rgba(74,222,128,.95)}
       .tag.bad{border-color:rgba(251,113,133,.35);color:rgba(251,113,133,.95)}
@@ -103,14 +112,16 @@ export default function handler(_req: any, res: any) {
 	                <button class="btn" id="btnMap">Map</button>
 	                <button class="btn" id="btnSettings">Settings</button>
 	                <label class="tag" id="showBotsWrap" style="display:none"><input id="showBots" type="checkbox" /> include bots</label>
+	                <label class="tag" id="mapBotsWrap" style="display:none"><input id="mapBots" type="checkbox" /> include bots</label>
 	                <input class="input" id="search" placeholder="Search…" />
-	                <button class="btn" id="refresh">Refresh</button>
+	                <span class="pill" id="lastUpdated" title="Last updated">—</span>
+	                <button class="btn icon" id="refresh" title="Refresh">⟳</button>
 	              </div>
 	            </div>
             <div class="bd" id="list">Loading…</div>
           </div>
 
-          <div class="card">
+          <div class="card detailsCard">
 	            <div class="hd">
 	              <div class="controls" style="width:100%">
 	                <div class="row" style="flex:1">Details</div>
@@ -125,7 +136,24 @@ export default function handler(_req: any, res: any) {
 
     <script>
       const $ = (id) => document.getElementById(id);
-	      const state = { authed:false, view:'dashboard', sessions:[], visitors:[], showBots:false, search:'', raw:false, selectedSid:null, selectedVid:null, overview:null, bots:null, map:null };
+	      const state = {
+          view:'dashboard',
+          sessions:[],
+          visitors:[],
+          showBots:false,
+          mapShowBots:false,
+          search:'',
+          raw:false,
+          selectedSid:null,
+          expandedSid:null,
+          selectedVid:null,
+          overview:null,
+          bots:null,
+          map:null,
+          settings:null,
+          cache:{ sessionLite:{}, sessionFull:{}, visitor:{} },
+          lastUpdatedAt:null,
+        };
 
       function readCookie(name){
         const m=document.cookie.match(new RegExp('(?:^|; )'+name.replace(/[.$?*|{}()\\[\\]\\\\\\/\\+^]/g,'\\\\$&')+'=([^;]*)'));
@@ -143,9 +171,11 @@ export default function handler(_req: any, res: any) {
       function setToken(t){ localStorage.setItem('admin_token',t); writeCookie('admin_token',t); }
       function forgetToken(){ localStorage.removeItem('admin_token'); clearCookie('admin_token'); }
 
-      async function loadStatus(){
+      async function loadStatus(token){
         try{
-          const r=await fetch('/api/admin/status',{headers:{accept:'application/json'}});
+          const headers={accept:'application/json'};
+          if(token) headers.authorization = 'Bearer ' + token;
+          const r=await fetch('/api/admin/status',{headers});
           if(!r.ok) return null;
           return await r.json();
         }catch{ return null; }
@@ -165,6 +195,16 @@ export default function handler(_req: any, res: any) {
       function showApp(){
         $('authRoot').style.display='none';
         $('appRoot').style.display='';
+      }
+      function setLastUpdated(ts){
+        state.lastUpdatedAt = ts || new Date();
+        const el = $('lastUpdated');
+        if(!el) return;
+        try{
+          el.textContent = state.lastUpdatedAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        }catch{
+          el.textContent = 'updated';
+        }
       }
 
       function api(path){
@@ -209,46 +249,104 @@ export default function handler(_req: any, res: any) {
       function renderSessions(){
         const rows=state.sessions.filter(matchesSearch);
         if(!rows.length){ $('list').innerHTML='<div class=\"row\">No sessions found.</div>'; return; }
+        function inlineHtmlForSid(sid){
+          const cached = state.cache.sessionLite[sid];
+          if(!cached) return '<div class=\"row\">Loading session…</div>';
+          const s = cached.session || {};
+          const events = cached.events || [];
+
+          const bits=[];
+          if(s.page) bits.push('page '+str(s.page));
+          if(s.referrer_host) bits.push('ref '+str(s.referrer_host));
+          if(s.first_interaction_seconds!=null) bits.push('first action '+fmtSec(s.first_interaction_seconds));
+          if(s.interactions!=null) bits.push('actions '+s.interactions);
+          if(s.active_seconds!=null) bits.push('active '+fmtSec(s.active_seconds));
+          if(s.session_seconds!=null) bits.push('total '+fmtSec(s.session_seconds));
+          if(s.bot_reasons) bits.push('bot: '+str(s.bot_reasons));
+
+          const last = events.length ? events[events.length-1] : null;
+          const lastLine = last ? ('Last event: <span class=\"mono\">'+str(last.type)+'</span> @ <span class=\"mono\">'+fmtTime(last.ts)+'</span>') : 'No events captured yet.';
+          return (
+            '<div class=\"row\" style=\"justify-content:space-between;gap:12px;flex-wrap:wrap\">'+
+              '<div class=\"row\" style=\"gap:12px;flex-wrap:wrap\">'+
+                '<span class=\"tag\">'+(s.is_bot?'bot':'human?')+'</span>'+
+                '<span class=\"mono\">'+(s.ip||'')+'</span>'+
+                (s.ptr?('<span class=\"mono\">'+s.ptr+'</span>'):'')+
+              '</div>'+
+              '<div class=\"controls\" style=\"gap:8px\">'+
+                '<button class=\"btn\" data-open-session=\"'+sid+'\">Open timeline</button>'+
+              '</div>'+
+            '</div>'+
+            '<div class=\"row\" style=\"margin-top:8px\">'+(bits.join(' • ')||'<span class=\"mono\">(no summary yet)</span>')+'</div>'+
+            '<div class=\"row\" style=\"margin-top:6px\">'+lastLine+'</div>'
+          );
+        }
+
+        const body=[];
+        for(const s of rows){
+          const flag=s.is_bot?'<span class=\"tag bad\">bot</span>':'<span class=\"tag good\">human?</span>';
+          const loc=[s.city,s.region,s.country].filter(Boolean).join(', ');
+          const net=[s.asn,s.as_name].filter(Boolean).join(' ');
+          const where=loc || (net?net:'');
+          const who=s.org || s.ptr || s.ip || '';
+          const summaryBits=[];
+          if(s.active_seconds!=null) summaryBits.push('active '+fmtSec(s.active_seconds));
+          if(s.idle_seconds!=null) summaryBits.push('idle '+fmtSec(s.idle_seconds));
+          if(s.session_seconds!=null) summaryBits.push('total '+fmtSec(s.session_seconds));
+          if(s.interactions!=null) summaryBits.push('actions '+s.interactions);
+          if(s.overlays_unique!=null) summaryBits.push('sections '+s.overlays_unique);
+          const device=(s.is_mobile===true?'mobile':'desktop')+(s.orientation?' ('+s.orientation+')':'');
+          const sel = (state.selectedSid===s.sid) ? ' sel' : '';
+          body.push(
+            '<tr class=\"sessionRow'+sel+'\" data-sid=\"'+s.sid+'\">'+
+              '<td>'+fmtDate(s.started_at)+
+                '<div class=\"mono\">'+(s.display_name || s.vid_short || '')+'</div>'+
+                (s.display_name ? ('<div class=\"mono\">'+(s.vid_short||'')+'</div>') : '')+
+              '</td>'+
+              '<td>'+(where||'<span class=\"mono\">(unknown)</span>')+'</td>'+
+              '<td>'+(who?('<div class=\"mono\">'+who+'</div>'):'<span class=\"mono\">(unknown)</span>')+'</td>'+
+              '<td>'+device+'</td>'+
+              '<td>'+(summaryBits.join(' • ')||'<span class=\"mono\">(no summary yet)</span>')+'</td>'+
+              '<td>'+flag+'</td>'+
+            '</tr>'
+          );
+          if(state.expandedSid===s.sid){
+            body.push('<tr class=\"expand\" data-expand=\"'+s.sid+'\"><td colspan=\"6\">'+inlineHtmlForSid(s.sid)+'</td></tr>');
+          }
+        }
+
         const html=[
           '<table>',
           '<thead><tr>',
           '<th>When</th><th>Where</th><th>Identity</th><th>Device</th><th>Summary</th><th>Flags</th>',
           '</tr></thead>',
           '<tbody>',
-          ...rows.map((s)=>{
-            const flag=s.is_bot?'<span class=\"tag bad\">bot</span>':'<span class=\"tag good\">human?</span>';
-            const loc=[s.city,s.region,s.country].filter(Boolean).join(', ');
-            const net=[s.asn,s.as_name].filter(Boolean).join(' ');
-            const where=loc || (net?net:'');
-            const who=s.org || s.ptr || s.ip || '';
-            const summaryBits=[];
-            if(s.active_seconds!=null) summaryBits.push('active '+fmtSec(s.active_seconds));
-            if(s.idle_seconds!=null) summaryBits.push('idle '+fmtSec(s.idle_seconds));
-            if(s.session_seconds!=null) summaryBits.push('total '+fmtSec(s.session_seconds));
-            if(s.interactions!=null) summaryBits.push('actions '+s.interactions);
-            if(s.overlays_unique!=null) summaryBits.push('sections '+s.overlays_unique);
-            const device=(s.is_mobile===true?'mobile':'desktop')+(s.orientation?' ('+s.orientation+')':'');
-            return (
-              '<tr data-sid=\"'+s.sid+'\">'+
-                '<td>'+fmtDate(s.started_at)+
-                  '<div class=\"mono\">'+(s.display_name || s.vid_short || '')+'</div>'+
-                  (s.display_name ? ('<div class=\"mono\">'+(s.vid_short||'')+'</div>') : '')+
-                '</td>'+
-                '<td>'+(where||'<span class=\"mono\">(unknown)</span>')+'</td>'+
-                '<td>'+(who?('<div class=\"mono\">'+who+'</div>'):'<span class=\"mono\">(unknown)</span>')+'</td>'+
-                '<td>'+device+'</td>'+
-                '<td>'+(summaryBits.join(' • ')||'<span class=\"mono\">(no summary yet)</span>')+'</td>'+
-                '<td>'+flag+'</td>'+
-              '</tr>'
-            );
-          }),
+          ...body,
           '</tbody></table>'
         ].join('');
         $('list').innerHTML=html;
-        $('list').querySelectorAll('tr[data-sid]').forEach((tr)=>{
+        $('list').querySelectorAll('tr.sessionRow[data-sid]').forEach((tr)=>{
           tr.addEventListener('click', async ()=>{
             const sid=tr.getAttribute('data-sid');
+            if(!sid) return;
+            if(state.expandedSid===sid){
+              state.expandedSid=null;
+              render();
+              return;
+            }
+            state.expandedSid=sid;
+            state.selectedSid=sid;
+            render();
+            void loadSessionLite(sid);
             await loadSession(sid);
+          });
+        });
+        $('list').querySelectorAll('button[data-open-session]').forEach((btn)=>{
+          btn.addEventListener('click', async (e)=>{
+            e.preventDefault();
+            e.stopPropagation();
+            const sid = btn.getAttribute('data-open-session');
+            if(sid) await loadSession(sid);
           });
         });
       }
@@ -265,8 +363,9 @@ export default function handler(_req: any, res: any) {
           ...rows.map((v)=>{
             const loc=[v.city,v.region,v.country].filter(Boolean).join(', ');
             const who=v.org || v.ptr || (loc?loc:'');
+            const sel = (state.selectedVid===v.vid) ? ' sel' : '';
             return (
-              '<tr data-vid=\"'+v.vid+'\">'+
+              '<tr class=\"visitorRow'+sel+'\" data-vid=\"'+v.vid+'\">'+
                 '<td>'+('<div class=\"mono\">'+(v.display_name||v.vid.slice(0,8))+'</div>')+
                   '<div class=\"mono\">'+v.vid.slice(0,8)+'</div>'+
                 '</td>'+
@@ -280,7 +379,7 @@ export default function handler(_req: any, res: any) {
           '</tbody></table>'
         ].join('');
         $('list').innerHTML=html;
-        $('list').querySelectorAll('tr[data-vid]').forEach((tr)=>{
+        $('list').querySelectorAll('tr.visitorRow[data-vid]').forEach((tr)=>{
           tr.addEventListener('click', async ()=>{
             const vid=tr.getAttribute('data-vid');
             if(vid) await loadVisitor(vid);
@@ -301,6 +400,24 @@ export default function handler(_req: any, res: any) {
         '</svg>';
       }
 
+      function sparkline2(a,b){
+        const pts=[...(a||[]),...(b||[])];
+        if(pts.length<2) return '';
+        const w=520, h=90, pad=8;
+        const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+        const minX=Math.min(...xs), maxX=Math.max(...xs);
+        const minY=Math.min(...ys), maxY=Math.max(...ys);
+        const sx=(x)=> pad + (maxX===minX?0:((x-minX)/(maxX-minX)))*(w-2*pad);
+        const sy=(y)=> h-pad - (maxY===minY?0:((y-minY)/(maxY-minY)))*(h-2*pad);
+        const path=(points)=> points.map((p,i)=>(i===0?'M':'L')+sx(p.x).toFixed(1)+','+sy(p.y).toFixed(1)).join(' ');
+        const da=path(a||[]);
+        const db=path(b||[]);
+        return '<svg viewBox=\"0 0 '+w+' '+h+'\" width=\"100%\" height=\"90\" style=\"display:block\">'+
+          '<path d=\"'+da+'\" fill=\"none\" stroke=\"rgba(255,215,0,.75)\" stroke-width=\"2\" />'+
+          '<path d=\"'+db+'\" fill=\"none\" stroke=\"rgba(138,180,248,.85)\" stroke-width=\"2\" />'+
+        '</svg>';
+      }
+
       function renderDashboard(){
         const o=state.overview;
         if(!o){ $('list').innerHTML='<div class=\"row\">Loading…</div>'; $('details').innerHTML=''; return; }
@@ -316,13 +433,17 @@ export default function handler(_req: any, res: any) {
           ['Returning (30d)', String(o.returning_visitors_30d||0)],
         ].map(([l,n])=>'<div class=\"kpi\"><div class=\"n\">'+n+'</div><div class=\"l\">'+l+'</div></div>').join('');
 
-        const byDay=(o.by_day_30d||[]).map((r,i)=>({x:i,y:Number(r.sessions||0)}));
-        const chart=byDay.length>=2 ? sparkline(byDay) : '';
+        const byDaySessions=(o.by_day_30d||[]).map((r,i)=>({x:i,y:Number(r.sessions||0)}));
+        const byDayVisitors=(o.by_day_30d||[]).map((r,i)=>({x:i,y:Number(r.visitors||0)}));
+        const chart=byDaySessions.length>=2 ? sparkline2(byDaySessions, byDayVisitors) : '';
 
         $('list').innerHTML=
           '<div class=\"row\" style=\"margin-bottom:8px\">Last 30 days</div>'+
           '<div class=\"kpis\">'+kpis+'</div>'+
-          (chart?('<div style=\"margin-top:10px\">'+chart+'</div>'):'');
+          (chart?(
+            '<div style=\"margin-top:10px\">'+chart+'</div>'+
+            '<div class=\"row\" style=\"margin-top:6px\"><span class=\"tag\" style=\"border-color:rgba(255,215,0,.35)\">sessions</span><span class=\"tag\" style=\"border-color:rgba(138,180,248,.35)\">visitors</span></div>'
+          ):'');
 
         const ref=(o.top_referrers_30d||[]).slice(0,10).map(r=>'<tr><td class=\"mono\">'+(r.host||'')+'</td><td>'+r.sessions+'</td></tr>').join('');
         const pages=(o.top_pages_30d||[]).slice(0,10).map(r=>'<tr><td class=\"mono\">'+(r.page||'')+'</td><td>'+r.sessions+'</td></tr>').join('');
@@ -346,11 +467,24 @@ export default function handler(_req: any, res: any) {
         const reasons=(b.reasons||[]).slice(0,12).map(r=>'<tr><td class=\"mono\">'+r.reason+'</td><td>'+r.count+'</td></tr>').join('');
         const uas=(b.user_agents||[]).slice(0,10).map(r=>'<tr><td class=\"mono\">'+(r.user_agent||'')+'</td><td>'+r.count+'</td></tr>').join('');
         const sessions=(b.sessions||[]);
+        const uniqueIps=new Set(sessions.map(s=>s.ip).filter(Boolean)).size;
+        const uniqueVisitors=new Set(sessions.map(s=>s.vid).filter(Boolean)).size;
         $('list').innerHTML=
           '<div class=\"row\" style=\"margin-bottom:8px\">Bot sessions (last '+b.days+' days)</div>'+
+          '<div class=\"kpis\" style=\"margin-bottom:10px\">'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(sessions.length)+'</div><div class=\"l\">sessions</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(uniqueVisitors)+'</div><div class=\"l\">visitors</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(uniqueIps)+'</div><div class=\"l\">unique IPs</div></div>'+
+          '</div>'+
           (sessions.length?(
-            '<table><thead><tr><th>When</th><th>Where</th><th>Identity</th><th>Score</th></tr></thead><tbody>'+
-              sessions.map((s)=>'<tr data-sid=\"'+s.sid+'\"><td>'+fmtDate(s.started_at)+'</td><td>'+[s.city,s.region,s.country].filter(Boolean).join(', ')+'</td><td class=\"mono\">'+(s.ptr||s.ip||'')+'</td><td>'+(s.bot_score||0)+'</td></tr>').join('')+
+            '<table><thead><tr><th>When</th><th>Where</th><th>Network</th><th>Identity</th><th>Score</th></tr></thead><tbody>'+
+              sessions.map((s)=> {
+                const f=s.freeip||{};
+                const where=[s.city,s.region,s.country].filter(Boolean).join(', ') || [f.city,f.region,f.country].filter(Boolean).join(', ');
+                const net=[f.org,f.isp,f.asn].filter(Boolean).join(' • ');
+                const id=(s.ptr||s.ip||'');
+                return '<tr data-sid=\"'+s.sid+'\"><td>'+fmtDate(s.started_at)+'</td><td>'+(where||'<span class=\"mono\">(unknown)</span>')+'</td><td class=\"mono\">'+(net||'')+'</td><td class=\"mono\">'+id+'</td><td>'+(s.bot_score||0)+'</td></tr>';
+              }).join('')+
             '</tbody></table>'
           ):'<div class=\"row\">No bot sessions.</div>');
         $('list').querySelectorAll('tr[data-sid]').forEach((tr)=>{
@@ -376,13 +510,15 @@ export default function handler(_req: any, res: any) {
 	          ? '<div class=\"row\" style=\"margin-bottom:8px\">Map (scroll to zoom, drag to pan, click a marker)</div>'
 	          : '<div class=\"row\" style=\"margin-bottom:8px\">Map</div><div class=\"row\">No geo points yet (needs Vercel geo headers).</div>';
 
-	        const tableRows = points.slice(0, 80).map((p)=>{
+	        const tableRows = points.slice(0, 120).map((p)=>{
 	          const loc=[p.city,p.region,p.country].filter(Boolean).join(', ');
+	          const flag = p.is_bot ? '<span class=\"tag bad\">bot</span>' : '<span class=\"tag good\">human?</span>';
 	          return '<tr class=\"clickable\" data-vid=\"'+p.vid+'\">'+
 	            '<td class=\"mono\">'+(p.display_name||p.vid.slice(0,8))+'</td>'+
 	            '<td>'+loc+'</td>'+
 	            '<td class=\"mono\">'+(p.ptr||p.ip||'')+'</td>'+
 	            '<td>'+ (p.sessions||0) +'</td>'+
+	            '<td>'+flag+'</td>'+
 	          '</tr>';
 	        }).join('');
 
@@ -390,8 +526,8 @@ export default function handler(_req: any, res: any) {
 	          hint +
 	          '<div id=\"map\"></div>' +
 	          '<div class=\"row\" style=\"margin:12px 0 8px\">Visitors</div>' +
-	          '<table><thead><tr><th>Visitor</th><th>Location</th><th>Identity</th><th>Sessions</th></tr></thead><tbody>' +
-	            (tableRows || '<tr><td colspan=\"4\" style=\"text-align:center;color:var(--muted);\">No mappable visitors yet.</td></tr>') +
+	          '<table><thead><tr><th>Visitor</th><th>Location</th><th>Identity</th><th>Sessions</th><th></th></tr></thead><tbody>' +
+	            (tableRows || '<tr><td colspan=\"5\" style=\"text-align:center;color:var(--muted);\">No mappable visitors yet.</td></tr>') +
 	          '</tbody></table>';
 
 	        $('list').querySelectorAll('tr[data-vid]').forEach((tr)=>{
@@ -431,11 +567,12 @@ export default function handler(_req: any, res: any) {
 	        points.forEach((p) => {
 	          if (p.lat == null || p.lon == null) return;
 	          const radius = Math.max(6, Math.min(14, 5 + Math.log2((p.sessions || 1) + 1) * 2));
+	          const fill = p.is_bot ? 'rgba(251,113,133,0.9)' : 'rgba(255,215,0,0.85)';
 	          const marker = L.circleMarker([p.lat, p.lon], {
 	            radius,
 	            color: 'rgba(0,0,0,0.35)',
 	            weight: 1,
-	            fillColor: 'rgba(255,215,0,0.85)',
+	            fillColor: fill,
 	            fillOpacity: 0.9,
 	          }).addTo(leaflet);
 	          marker.bindTooltip((p.display_name||p.vid.slice(0,8)) + ' • ' + (p.sessions||0) + ' sessions', { direction: 'top' });
@@ -455,20 +592,80 @@ export default function handler(_req: any, res: any) {
 	      }
 
       function renderSettings(){
+        if(!state.settings){
+          $('list').innerHTML='<div class=\"row\">Loading settings…</div>';
+          $('details').innerHTML='<div class=\"row\">Settings are stored in Postgres (<span class=\"mono\">tracker_settings</span>).</div>';
+          void (async ()=>{
+            const st = await loadStatus(getToken());
+            if(st && st.settings){ state.settings = st.settings; render(); }
+          })();
+          return;
+        }
+
+        const s=state.settings;
         $('list').innerHTML=
-          '<div class=\"row\">Tracker settings (for open source)</div>'+
-          '<div class=\"pre\" style=\"margin-top:10px\">'+
-            'Required env vars:\\n'+
+          '<div class=\"row\" style=\"margin-bottom:8px\">Settings</div>'+
+          '<div class=\"pre\">'+
+            'Retention\\n'+
+            '  Humans: keep sessions for '+s.retention_human_days+' days\\n'+
+            '  Bots: keep sessions for '+s.retention_bot_days+' days\\n\\n'+
+            'Map\\n'+
+            '  Include bots by default: '+(s.map_include_bots_default?'yes':'no')+'\\n'+
+          '</div>'+
+          '<div class=\"row\" style=\"margin-top:12px\">Edit</div>'+
+          '<div class=\"controls\" style=\"margin-top:10px\">'+
+            '<label class=\"tag\">Humans (days) <input class=\"input\" style=\"min-width:120px\" id=\"retHuman\" type=\"number\" min=\"1\" max=\"3650\" value=\"'+s.retention_human_days+'\" /></label>'+
+            '<label class=\"tag\">Bots (days) <input class=\"input\" style=\"min-width:120px\" id=\"retBot\" type=\"number\" min=\"1\" max=\"365\" value=\"'+s.retention_bot_days+'\" /></label>'+
+            '<label class=\"tag\"><input id=\"mapDefaultBots\" type=\"checkbox\" '+(s.map_include_bots_default?'checked':'')+' /> map includes bots</label>'+
+            '<button class=\"btn\" id=\"saveSettings\">Save</button>'+
+          '</div>'+
+          '<div class=\"row\" id=\"settingsMsg\" style=\"margin-top:10px\"></div>'+
+          '<div class=\"row\" style=\"margin-top:14px\">Docs: <span class=\"mono\">tracker/README.md</span></div>';
+
+        $('details').innerHTML=
+          '<div class=\"row\" style=\"margin-bottom:8px\">Env vars</div>'+
+          '<div class=\"pre\">'+
+            'Required:\\n'+
             '  DATABASE_URL (or POSTGRES_URL*)\\n'+
             '  ADMIN_TOKEN\\n\\n'+
             'Optional:\\n'+
-            '  IPINFO_TOKEN\\n'+
-            '  BOT_SCORE_THRESHOLD (default 6)\\n\\n'+
-            'Client options (Vite):\\n'+
-            '  VITE_TRACKER_ENDPOINT=/api/collect\\n'+
-            '  VITE_TRACKER_PERSIST=localStorage|cookie\\n'+
+            '  IPINFO_TOKEN (humans only)\\n'+
+            '  BOT_SCORE_THRESHOLD (default 6)\\n'+
           '</div>';
-        $('details').innerHTML='<div class=\"row\">More docs: <span class=\"mono\">tracker/README.md</span></div>';
+
+        const msgEl=$('settingsMsg');
+        const saveBtn=$('saveSettings');
+        if(saveBtn){
+          saveBtn.addEventListener('click', async ()=>{
+            const token=getToken();
+            const patch={
+              retention_human_days: Number(($('retHuman') && $('retHuman').value) ? $('retHuman').value : s.retention_human_days),
+              retention_bot_days: Number(($('retBot') && $('retBot').value) ? $('retBot').value : s.retention_bot_days),
+              map_include_bots_default: Boolean($('mapDefaultBots') && $('mapDefaultBots').checked),
+            };
+            try{
+              if(msgEl){ msgEl.textContent='Saving…'; msgEl.style.color='var(--muted)'; }
+              const r=await fetch('/api/admin/status',{
+                method:'POST',
+                headers:{
+                  'content-type':'application/json',
+                  'accept':'application/json',
+                  'authorization': token?('Bearer '+token):''
+                },
+                body: JSON.stringify(patch)
+              });
+              if(!r.ok) throw new Error(await r.text());
+              const out=await r.json();
+              state.settings=out.settings||patch;
+              state.mapShowBots = Boolean(state.settings.map_include_bots_default);
+              const mb=$('mapBots'); if(mb) mb.checked=state.mapShowBots;
+              if(msgEl){ msgEl.textContent='Saved.'; msgEl.style.color='var(--green)'; }
+              render();
+            }catch(err){
+              if(msgEl){ msgEl.textContent='Save failed.'; msgEl.style.color='var(--red)'; }
+            }
+          });
+        }
       }
 
       function render(){
@@ -483,40 +680,54 @@ export default function handler(_req: any, res: any) {
       async function loadOverview(){
         const data=await api('/api/admin/overview');
         state.overview=data;
+        setLastUpdated(new Date());
         render();
       }
       async function loadSessions(){
         const bots=state.showBots?'1':'0';
         const data=await api('/api/admin/sessions?bots='+bots);
         state.sessions=data.sessions||[];
+        setLastUpdated(new Date());
         render();
       }
       async function loadVisitors(){
         const data=await api('/api/admin/visitors');
         state.visitors=data.visitors||[];
+        setLastUpdated(new Date());
         render();
       }
       async function loadBots(){
         const data=await api('/api/admin/bots?days=30');
         state.bots=data;
+        setLastUpdated(new Date());
         render();
       }
       async function loadMap(){
-        const data=await api('/api/admin/map');
+        const bots=state.mapShowBots?'1':'0';
+        const data=await api('/api/admin/map?bots='+bots);
         state.map=data;
+        setLastUpdated(new Date());
         render();
       }
 
       async function loadVisitor(vid){
         state.selectedVid=vid;
         state.selectedSid=null;
+        state.expandedSid=null;
         $('rawWrap').style.display='none';
+        $('details').innerHTML='<div class=\"row\">Loading visitor…</div>';
         const data=await api('/api/admin/visitor?vid='+encodeURIComponent(vid));
         const v=data.visitor;
         const sessions=data.sessions||[];
 
         const loc=[v.city,v.region,v.country].filter(Boolean).join(', ');
         const ident=v.org || v.ptr || v.last_ip || '';
+        const humanSessions=sessions.filter((s)=>!s.is_bot);
+        const botSessions=sessions.filter((s)=>s.is_bot);
+        const durations=humanSessions.map((s)=>Number(s.session_seconds)).filter((n)=>Number.isFinite(n) && n>0);
+        const avgDur=durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : null;
+        const avgActions=humanSessions.map((s)=>Number(s.interactions)).filter((n)=>Number.isFinite(n) && n>=0);
+        const avgAct=avgActions.length ? avgActions.reduce((a,b)=>a+b,0)/avgActions.length : null;
         const header=
           '<div class=\"row\" style=\"margin-bottom:10px\">'+
             '<span class=\"tag good\">visitor</span>'+
@@ -530,25 +741,32 @@ export default function handler(_req: any, res: any) {
             '<span>First: <span class=\"mono\">'+fmtDate(v.first_seen_at)+'</span></span>'+
             '<span>Last: <span class=\"mono\">'+fmtDate(v.last_seen_at)+'</span></span>'+
           '</div>'+
+          '<div class=\"kpis\">'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(sessions.length)+'</div><div class=\"l\">sessions</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(humanSessions.length)+'</div><div class=\"l\">human</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(botSessions.length)+'</div><div class=\"l\">bots</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+(avgDur==null?'—':fmtSec(avgDur))+'</div><div class=\"l\">avg time</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+(avgAct==null?'—':String(Math.round(avgAct)))+'</div><div class=\"l\">avg actions</div></div>'+
+          '</div>'+
           '<div class=\"controls\" style=\"margin:10px 0\">'+
             '<input class=\"input\" id=\"dnInput\" value=\"'+(v.display_name||'').replace(/\"/g,'')+'\" placeholder=\"Display name\" />'+
             '<button class=\"btn\" id=\"dnSave\">Save name</button>'+
           '</div>';
 
-        const rows=sessions.map((s)=> {
+        const rows=sessions.slice(0,80).map((s)=> {
           const where=[s.city,s.region,s.country].filter(Boolean).join(', ');
           const sum=[];
-          if(s.active_seconds!=null) sum.push('active '+fmtSec(s.active_seconds));
-          if(s.idle_seconds!=null) sum.push('idle '+fmtSec(s.idle_seconds));
-          if(s.session_seconds!=null) sum.push('total '+fmtSec(s.session_seconds));
-          if(s.interactions!=null) sum.push('actions '+s.interactions);
-          if(s.overlays_unique!=null) sum.push('sections '+s.overlays_unique);
-          return '<tr data-sid=\"'+s.sid+'\"><td>'+fmtDate(s.started_at)+'</td><td>'+(where||'')+'</td><td class=\"mono\">'+(s.ptr||s.ip||'')+'</td><td>'+ (sum.join(' • ')||'') +'</td></tr>';
+          if(s.session_seconds!=null) sum.push(fmtSec(s.session_seconds));
+          if(s.interactions!=null) sum.push(s.interactions+' actions');
+          if(s.overlays_unique!=null) sum.push(s.overlays_unique+' sections');
+          const device=(s.is_mobile===true?'mobile':'desktop')+(s.orientation?' ('+s.orientation+')':'');
+          const flag=s.is_bot?'<span class=\"tag bad\">bot</span>':'<span class=\"tag good\">human?</span>';
+          return '<tr data-sid=\"'+s.sid+'\"><td>'+fmtDate(s.started_at)+'</td><td class=\"mono\">'+(s.page||'')+'</td><td>'+device+'</td><td>'+(where||'')+'</td><td>'+ (sum.join(' • ')||'') +'</td><td>'+flag+'</td></tr>';
         }).join('');
 
         $('details').innerHTML=header+
-          '<div class=\"row\" style=\"margin:12px 0 8px\">Sessions</div>'+
-          (rows?('<table><thead><tr><th>When</th><th>Where</th><th>Identity</th><th>Summary</th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div class=\"row\">No sessions.</div>');
+          '<div class=\"row\" style=\"margin:12px 0 8px\">Recent sessions</div>'+
+          (rows?('<table><thead><tr><th>When</th><th>Page</th><th>Device</th><th>Where</th><th>Summary</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div class=\"row\">No sessions.</div>');
 
         const saveBtn=$('dnSave');
         if(saveBtn){
@@ -617,11 +835,28 @@ export default function handler(_req: any, res: any) {
         return {t,h:type,d:e.data ? JSON.stringify(e.data) : ''};
       }
 
+      async function fetchSession(sid, lite){
+        const bucket = lite ? state.cache.sessionLite : state.cache.sessionFull;
+        if(bucket[sid]) return bucket[sid];
+        const data=await api('/api/admin/session?sid='+encodeURIComponent(sid)+(lite?'&lite=1':''));
+        bucket[sid]=data;
+        return data;
+      }
+
+      async function loadSessionLite(sid){
+        try{
+          await fetchSession(sid, true);
+          render();
+        }catch{
+          // ignore
+        }
+      }
+
       async function loadSession(sid){
         state.selectedSid=sid;
         const rawWrap=$('rawWrap');
         if(rawWrap) rawWrap.style.display = (state.view==='sessions' || state.view==='bots') ? '' : 'none';
-        const data=await api('/api/admin/session?sid='+encodeURIComponent(sid));
+        const data=await fetchSession(sid, false);
         const s=data.session;
         const events=data.events||[];
 
@@ -755,6 +990,8 @@ export default function handler(_req: any, res: any) {
 	        }
 	        const showBotsWrap=$('showBotsWrap');
 	        if(showBotsWrap) showBotsWrap.style.display = view==='sessions' ? '' : 'none';
+	        const mapBotsWrap=$('mapBotsWrap');
+	        if(mapBotsWrap) mapBotsWrap.style.display = view==='map' ? '' : 'none';
 	        const rawWrap=$('rawWrap');
 	        if(rawWrap) rawWrap.style.display = (state.selectedSid && (view==='sessions' || view==='bots')) ? '' : 'none';
 
@@ -794,16 +1031,31 @@ export default function handler(_req: any, res: any) {
 	        state.showBots=e.target.checked;
 	        if(state.view==='sessions') await loadSessions();
 	      });
-	      $('search').addEventListener('input',(e)=>{ state.search=e.target.value||''; render(); });
-	      $('refresh').addEventListener('click', async ()=>{
-	        if(state.view==='dashboard') await loadOverview();
-	        else if(state.view==='sessions') await loadSessions();
-	        else if(state.view==='visitors') await loadVisitors();
-	        else if(state.view==='bots') await loadBots();
-	        else if(state.view==='map') await loadMap();
-	        else render();
+	      $('mapBots').addEventListener('change', async (e)=>{
+	        state.mapShowBots=e.target.checked;
+	        if(state.view==='map') await loadMap();
 	      });
+	      $('search').addEventListener('input',(e)=>{ state.search=e.target.value||''; render(); });
+        async function refreshCurrent(){
+          if(state.view==='dashboard') await loadOverview();
+          else if(state.view==='sessions') await loadSessions();
+          else if(state.view==='visitors') await loadVisitors();
+          else if(state.view==='bots') await loadBots();
+          else if(state.view==='map') await loadMap();
+          else render();
+        }
+	      $('refresh').addEventListener('click', async ()=>{ await refreshCurrent(); });
 	      $('rawToggle').addEventListener('change', async (e)=>{ state.raw=e.target.checked; if(state.selectedSid) await loadSession(state.selectedSid); });
+
+        // Auto-refresh keeps the dashboard usable without a manual reload button.
+        let refreshTimer=null;
+        function startAutoRefresh(){
+          if(refreshTimer) clearInterval(refreshTimer);
+          refreshTimer=setInterval(()=>{
+            if(document.hidden) return;
+            void refreshCurrent();
+          }, 15000);
+        }
 
 	      async function doContinue(){
 	        const t=$('token').value||'';
@@ -814,6 +1066,14 @@ export default function handler(_req: any, res: any) {
 	        setToken(t);
 	        $('token').value='';
 	        showApp();
+          startAutoRefresh();
+          const st = await loadStatus(getToken());
+          if(st && st.settings){
+            state.settings = st.settings;
+            state.mapShowBots = Boolean(st.settings.map_include_bots_default);
+            const mb = $('mapBots');
+            if(mb) mb.checked = state.mapShowBots;
+          }
 	        setView('dashboard');
 	        await loadOverview();
 	      }
@@ -832,6 +1092,14 @@ export default function handler(_req: any, res: any) {
 	        const ok=await checkAuth(saved);
 	        if(!ok){ forgetToken(); showAuth('Saved token was invalid. Please re-enter.', true); return; }
 	        showApp();
+          startAutoRefresh();
+          const st = await loadStatus(saved);
+          if(st && st.settings){
+            state.settings = st.settings;
+            state.mapShowBots = Boolean(st.settings.map_include_bots_default);
+            const mb = $('mapBots');
+            if(mb) mb.checked = state.mapShowBots;
+          }
 	        setView('dashboard');
 	        await loadOverview();
 	      })();

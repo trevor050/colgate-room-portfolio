@@ -13,6 +13,7 @@ import { computeBotScore } from '../server/bot.js';
 import { fetchAndCacheIpinfo, getIpinfoCached } from '../server/ipinfo.js';
 import { fetchAndCachePtr, getPtrCached } from '../server/ptr.js';
 import { makeDisplayName } from '../server/names.js';
+import { getSettings } from '../server/settings.js';
 
 type IncomingEvent = {
   type: string;
@@ -318,6 +319,46 @@ export default async function handler(req: any, res: any) {
           [ptrError, vid]
         );
       }
+    }
+
+    // Retention cleanup (opportunistic; bounded per request).
+    // Low-traffic sites may not have cron, so we piggyback on collect.
+    if (summary && Math.random() < 0.4) {
+      const settings = await getSettings().catch(() => ({
+        retention_human_days: 365,
+        retention_bot_days: 30,
+        map_include_bots_default: false,
+      }));
+
+      await query(
+        `
+          DELETE FROM sessions
+          WHERE sid IN (
+            SELECT sid
+            FROM sessions
+            WHERE COALESCE(is_bot,false)=false
+              AND started_at < NOW() - ($1 * INTERVAL '1 day')
+            ORDER BY started_at ASC
+            LIMIT 250
+          )
+        `,
+        [settings.retention_human_days],
+      );
+
+      await query(
+        `
+          DELETE FROM sessions
+          WHERE sid IN (
+            SELECT sid
+            FROM sessions
+            WHERE COALESCE(is_bot,false)=true
+              AND started_at < NOW() - ($1 * INTERVAL '1 day')
+            ORDER BY started_at ASC
+            LIMIT 500
+          )
+        `,
+        [settings.retention_bot_days],
+      );
     }
 
     res.statusCode = 204;

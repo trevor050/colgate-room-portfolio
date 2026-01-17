@@ -1,6 +1,23 @@
 import { requireAdmin } from '../../server/admin.js';
 import { ensureSchema } from '../../server/schema.js';
 import { query, getPool } from '../../server/db.js';
+import { fetchAndCacheFreeIp } from '../../server/freeip.js';
+
+function getFreeIpSummary(data: any): any | null {
+  if (!data || typeof data !== 'object') return null;
+  const conn = (data as any).connection ?? {};
+  const tz = (data as any).timezone ?? {};
+  return {
+    city: (data as any).city ?? null,
+    region: (data as any).region ?? null,
+    country: (data as any).country ?? null,
+    postal: (data as any).postal ?? (data as any).zip ?? null,
+    timezone: tz.id ?? tz.name ?? null,
+    org: conn.org ?? null,
+    isp: conn.isp ?? null,
+    asn: conn.asn ?? null,
+  };
+}
 
 export default async function handler(req: any, res: any) {
   if (!requireAdmin(req, res)) return;
@@ -88,8 +105,27 @@ export default async function handler(req: any, res: any) {
     };
   });
 
+  // Enrich bot IPs with a free IP API (cached) to avoid burning IPinfo quota.
+  const ips = Array.from(new Set(sessions.map((s: any) => s.ip).filter(Boolean))).slice(0, 200);
+  const cache = new Map<string, { data: any | null; error: string | null }>();
+  if (ips.length) {
+    const cacheRes = await query<any>(`SELECT ip, data, error FROM freeip_cache WHERE ip = ANY($1::text[])`, [ips]);
+    for (const r of cacheRes.rows) cache.set(r.ip, { data: r.data ?? null, error: r.error ?? null });
+
+    const missing = ips.filter((ip) => !cache.has(ip)).slice(0, 4);
+    for (const ip of missing) {
+      const fetched = await fetchAndCacheFreeIp(ip);
+      cache.set(ip, { data: fetched.data, error: fetched.error });
+    }
+  }
+
+  const enrichedSessions = sessions.map((s: any) => {
+    const extra = s.ip ? cache.get(s.ip) : null;
+    const freeip = extra?.data ? getFreeIpSummary(extra.data) : null;
+    return { ...s, freeip, freeip_error: extra?.error ?? null };
+  });
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ days, sessions, reasons: reasonRes.rows, user_agents: uaRes.rows }));
+  res.end(JSON.stringify({ days, sessions: enrichedSessions, reasons: reasonRes.rows, user_agents: uaRes.rows }));
 }
-
