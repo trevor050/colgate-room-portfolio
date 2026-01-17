@@ -3,6 +3,7 @@ import { ensureSchema } from '../../server/schema.js';
 import { query, getPool } from '../../server/db.js';
 import { makeDisplayName } from '../../server/names.js';
 import { readRawBody } from '../../server/http.js';
+import { createHash } from 'node:crypto';
 
 function clampString(value: unknown, max = 200): string | null {
   if (typeof value !== 'string') return null;
@@ -34,14 +35,29 @@ export default async function handler(req: any, res: any) {
 
     const vid = clampString(body?.vid, 128);
     const displayName = clampString(body?.display_name, 80);
-    if (!vid) {
+    const clusterId = clampString(body?.cluster_id, 128);
+    const clusterName = clampString(body?.cluster_name, 80);
+
+    if (!vid && !clusterId) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ error: 'Missing vid' }));
+      res.end(JSON.stringify({ error: 'Missing vid or cluster_id' }));
       return;
     }
 
-    await query(`UPDATE visitors SET display_name = $2 WHERE vid = $1`, [vid, displayName]);
+    if (vid) {
+      await query(`UPDATE visitors SET display_name = $2 WHERE vid = $1`, [vid, displayName]);
+    }
+    if (clusterId) {
+      await query(
+        `
+          INSERT INTO visitor_groups (group_id, display_name, updated_at)
+          VALUES ($1, $2, NOW())
+          ON CONFLICT (group_id) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = NOW()
+        `,
+        [clusterId, clusterName]
+      );
+    }
     res.statusCode = 204;
     res.end();
     return;
@@ -105,6 +121,7 @@ export default async function handler(req: any, res: any) {
         referrer,
         geo,
         ipinfo,
+        session_cookie_id,
         active_seconds,
         idle_seconds,
         session_seconds,
@@ -155,6 +172,7 @@ export default async function handler(req: any, res: any) {
       latitude: geo.latitude ?? null,
       longitude: geo.longitude ?? null,
       org: ipinfoS.org ?? ipinfoS.company?.name ?? null,
+      session_cookie_id: s.session_cookie_id ?? null,
       active_seconds: s.active_seconds,
       idle_seconds: s.idle_seconds,
       session_seconds: s.session_seconds,
@@ -163,7 +181,93 @@ export default async function handler(req: any, res: any) {
     };
   });
 
+  const cookieRes = await query<any>(
+    `
+      SELECT DISTINCT session_cookie_id
+      FROM sessions
+      WHERE vid = $1 AND session_cookie_id IS NOT NULL AND session_cookie_id <> ''
+      LIMIT 50
+    `,
+    [vid]
+  );
+  const scids = cookieRes.rows.map((r: any) => r.session_cookie_id).filter(Boolean);
+
+  const ipRes = await query<any>(
+    `
+      SELECT DISTINCT ip
+      FROM session_ips
+      WHERE sid IN (SELECT sid FROM sessions WHERE vid = $1)
+      LIMIT 100
+    `,
+    [vid]
+  );
+  const ips = ipRes.rows.map((r: any) => r.ip).filter(Boolean);
+
+  const tokens = [...scids.map((s: string) => `scid:${s}`), ...ips.map((i: string) => `ip:${i}`)];
+  const rawKey = tokens.length ? tokens.sort().join('|') : `vid:${vid}`;
+  const groupId = createHash('sha1').update(rawKey).digest('hex').slice(0, 12);
+
+  const groupRes = await query<any>(`SELECT display_name FROM visitor_groups WHERE group_id = $1 LIMIT 1`, [groupId]);
+  let groupName = groupRes.rows[0]?.display_name ?? null;
+  if (!groupName) {
+    groupName = makeDisplayName(groupId);
+    await query(
+      `
+        INSERT INTO visitor_groups (group_id, display_name, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (group_id) DO NOTHING
+      `,
+      [groupId, groupName]
+    );
+  }
+
+  const relatedRes = await query<any>(
+    `
+      SELECT
+        s.vid,
+        v.display_name,
+        v.last_seen_at,
+        v.last_ip,
+        v.ptr,
+        v.ipinfo,
+        BOOL_OR(s.session_cookie_id = ANY($2::text[])) AS shared_cookie,
+        BOOL_OR(s.ip = ANY($3::text[])) AS shared_ip
+      FROM sessions s
+      JOIN visitors v ON v.vid = s.vid
+      WHERE s.vid <> $1
+        AND (s.session_cookie_id = ANY($2::text[]) OR s.ip = ANY($3::text[]))
+      GROUP BY s.vid, v.display_name, v.last_seen_at, v.last_ip, v.ptr, v.ipinfo
+      ORDER BY v.last_seen_at DESC
+      LIMIT 60
+    `,
+    [vid, scids, ips]
+  );
+
+  const related = relatedRes.rows.map((r: any) => {
+    const ipinfoR = r.ipinfo ?? {};
+    return {
+      vid: r.vid,
+      display_name: r.display_name ?? makeDisplayName(r.vid),
+      last_seen_at: r.last_seen_at,
+      last_ip: r.last_ip,
+      ptr: r.ptr ?? null,
+      city: ipinfoR.city ?? null,
+      region: ipinfoR.region ?? null,
+      country: ipinfoR.country ?? null,
+      org: ipinfoR.org ?? ipinfoR.company?.name ?? null,
+      shared_cookie: Boolean(r.shared_cookie),
+      shared_ip: Boolean(r.shared_ip),
+    };
+  });
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
-  res.end(JSON.stringify({ visitor, sessions }));
+  res.end(
+    JSON.stringify({
+      visitor,
+      sessions,
+      cluster: { id: groupId, display_name: groupName, session_cookies: scids, ips },
+      related,
+    })
+  );
 }

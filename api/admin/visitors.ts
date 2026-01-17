@@ -15,6 +15,9 @@ export default async function handler(req: any, res: any) {
 
   await ensureSchema();
 
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const includeBots = url.searchParams.get('bots') === '1';
+
   const { rows } = await query<any>(
     `
       SELECT
@@ -27,13 +30,17 @@ export default async function handler(req: any, res: any) {
         v.ptr,
         v.ipinfo,
         COUNT(s.sid) AS sessions,
+        COUNT(*) FILTER (WHERE COALESCE(s.is_bot,false)=false) AS sessions_human,
+        COUNT(*) FILTER (WHERE COALESCE(s.is_bot,false)=true) AS sessions_bot,
         MAX(s.started_at) AS last_session_at
       FROM visitors v
       LEFT JOIN sessions s ON s.vid = v.vid
       GROUP BY v.vid
+      HAVING ($1::boolean = true OR COUNT(*) FILTER (WHERE COALESCE(s.is_bot,false)=false) > 0)
       ORDER BY v.last_seen_at DESC
       LIMIT 250
-    `
+    `,
+    [includeBots]
   );
 
   const visitors = rows.map((v: any) => {
@@ -48,6 +55,10 @@ export default async function handler(req: any, res: any) {
       last_ip: v.last_ip,
       ptr: v.ptr ?? null,
       sessions: typeof v.sessions === 'string' ? Number(v.sessions) : v.sessions ?? 0,
+      sessions_human:
+        typeof v.sessions_human === 'string' ? Number(v.sessions_human) : v.sessions_human ?? 0,
+      sessions_bot:
+        typeof v.sessions_bot === 'string' ? Number(v.sessions_bot) : v.sessions_bot ?? 0,
       last_session_at: v.last_session_at ?? null,
       city: ipinfo.city ?? null,
       region: ipinfo.region ?? null,

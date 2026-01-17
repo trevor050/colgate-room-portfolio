@@ -37,9 +37,10 @@ export default function handler(_req: any, res: any) {
       .detailsCard{position:sticky;top:16px}
       .hd{display:flex;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.18)}
       .bd{padding:14px 16px}
+      .detailsCard .bd{overflow-x:auto}
       .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
       .btn{border:1px solid var(--border);background:rgba(0,0,0,.2);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
-      .btn.icon{padding:8px 12px;min-width:46px;font-size:14px}
+      .btn.icon{padding:8px 14px;min-width:54px;font-size:15px}
       .btn.active{border-color:rgba(255,215,0,.35);box-shadow:0 0 0 3px rgba(255,215,0,.12)}
       .input{border:1px solid var(--border);background:rgba(0,0,0,.2);color:var(--text);padding:8px 10px;border-radius:10px;min-width:240px}
       .row{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:13px}
@@ -112,6 +113,7 @@ export default function handler(_req: any, res: any) {
 	                <button class="btn" id="btnMap">Map</button>
 	                <button class="btn" id="btnSettings">Settings</button>
 	                <label class="tag" id="showBotsWrap" style="display:none"><input id="showBots" type="checkbox" /> include bots</label>
+	                <label class="tag" id="visitorBotsWrap" style="display:none"><input id="showBotsVisitors" type="checkbox" /> include bots</label>
 	                <label class="tag" id="mapBotsWrap" style="display:none"><input id="mapBots" type="checkbox" /> include bots</label>
 	                <input class="input" id="search" placeholder="Search…" />
 	                <span class="pill" id="lastUpdated" title="Last updated">—</span>
@@ -136,11 +138,12 @@ export default function handler(_req: any, res: any) {
 
     <script>
       const $ = (id) => document.getElementById(id);
-	      const state = {
+      const state = {
           view:'dashboard',
           sessions:[],
           visitors:[],
           showBots:false,
+          visitorsShowBots:false,
           mapShowBots:false,
           search:'',
           raw:false,
@@ -346,7 +349,7 @@ export default function handler(_req: any, res: any) {
         const html=[
           '<table>',
           '<thead><tr>',
-          '<th>Visitor</th><th>Sessions</th><th>Last seen</th><th>Identity</th><th>Last IP</th>',
+          '<th>Visitor</th><th>Sessions</th><th>Last seen</th><th>Last session</th><th>Identity</th><th>From</th><th>Last IP</th>',
           '</tr></thead>',
           '<tbody>',
           ...rows.map((v)=>{
@@ -360,7 +363,9 @@ export default function handler(_req: any, res: any) {
                 '</td>'+
                 '<td>'+(v.sessions!=null?String(v.sessions):'—')+'</td>'+
                 '<td>'+fmtDate(v.last_seen_at)+'</td>'+
+                '<td>'+fmtDate(v.last_session_at)+'</td>'+
                 '<td>'+(who?('<div class=\"mono\">'+who+'</div>'):'<span class=\"mono\">(unknown)</span>')+'</td>'+
+                '<td>'+(loc?('<div class=\"mono\">'+loc+'</div>'):'<span class=\"mono\">(unknown)</span>')+'</td>'+
                 '<td class=\"mono\">'+(v.last_ip||'')+'</td>'+
               '</tr>'
             );
@@ -371,7 +376,10 @@ export default function handler(_req: any, res: any) {
         $('list').querySelectorAll('tr.visitorRow[data-vid]').forEach((tr)=>{
           tr.addEventListener('click', async ()=>{
             const vid=tr.getAttribute('data-vid');
-            if(vid) await loadVisitor(vid);
+            if(!vid) return;
+            state.selectedVid = vid;
+            renderVisitors();
+            await loadVisitor(vid);
           });
         });
       }
@@ -703,7 +711,8 @@ export default function handler(_req: any, res: any) {
         render();
       }
       async function loadVisitors(){
-        const data=await api('/api/admin/visitors');
+        const bots=state.visitorsShowBots?'1':'0';
+        const data=await api('/api/admin/visitors?bots='+bots);
         state.visitors=data.visitors||[];
         setLastUpdated(new Date());
         render();
@@ -734,6 +743,10 @@ export default function handler(_req: any, res: any) {
 
         const loc=[v.city,v.region,v.country].filter(Boolean).join(', ');
         const ident=v.org || v.ptr || v.last_ip || '';
+        const cluster=data.cluster || null;
+        const related=data.related || [];
+        const cookies=(cluster && Array.isArray(cluster.session_cookies)) ? cluster.session_cookies : [];
+        const ips=(cluster && Array.isArray(cluster.ips)) ? cluster.ips : [];
         const humanSessions=sessions.filter((s)=>!s.is_bot);
         const botSessions=sessions.filter((s)=>s.is_bot);
         const durations=humanSessions.map((s)=>Number(s.session_seconds)).filter((n)=>Number.isFinite(n) && n>0);
@@ -753,6 +766,18 @@ export default function handler(_req: any, res: any) {
             '<span>First: <span class=\"mono\">'+fmtDate(v.first_seen_at)+'</span></span>'+
             '<span>Last: <span class=\"mono\">'+fmtDate(v.last_seen_at)+'</span></span>'+
           '</div>'+
+          (cluster ? (
+            '<div class=\"row\" style=\"margin-bottom:10px\">'+
+              '<span>Cluster: <span class=\"mono\">'+cluster.id+'</span></span>'+
+              '<span class=\"mono\">'+cluster.display_name+'</span>'+
+            '</div>'
+          ) : '')+
+          (cookies.length ? (
+            '<div class=\"row\" style=\"margin-bottom:10px\">Session cookies: <span class=\"mono\">'+cookies.slice(0,6).join(', ')+'</span></div>'
+          ) : '')+
+          (ips.length ? (
+            '<div class=\"row\" style=\"margin-bottom:10px\">Known IPs: <span class=\"mono\">'+ips.slice(0,6).join(', ')+'</span></div>'
+          ) : '')+
           '<div class=\"kpis\">'+
             '<div class=\"kpi\"><div class=\"n\">'+String(sessions.length)+'</div><div class=\"l\">sessions</div></div>'+
             '<div class=\"kpi\"><div class=\"n\">'+String(humanSessions.length)+'</div><div class=\"l\">human</div></div>'+
@@ -776,7 +801,34 @@ export default function handler(_req: any, res: any) {
           return '<tr data-sid=\"'+s.sid+'\"><td>'+fmtDate(s.started_at)+'</td><td class=\"mono\">'+(s.page||'')+'</td><td>'+device+'</td><td>'+(where||'')+'</td><td>'+ (sum.join(' • ')||'') +'</td><td>'+flag+'</td></tr>';
         }).join('');
 
-        $('details').innerHTML=header+
+        const relatedRows = related.slice(0, 40).map((r)=>{
+          const where=[r.city,r.region,r.country].filter(Boolean).join(', ');
+          const who=r.org || r.ptr || (where?where:'');
+          const why=[];
+          if(r.shared_cookie) why.push('cookie');
+          if(r.shared_ip) why.push('ip');
+          return '<tr data-vid=\"'+r.vid+'\">'+
+            '<td class=\"mono\">'+(r.display_name||r.vid.slice(0,8))+'</td>'+
+            '<td>'+fmtDate(r.last_seen_at)+'</td>'+
+            '<td class=\"mono\">'+(who||'')+'</td>'+
+            '<td class=\"mono\">'+(r.last_ip||'')+'</td>'+
+            '<td>'+ (why.length?why.join(' + '):'') +'</td>'+
+          '</tr>';
+        }).join('');
+
+        const relatedHtml = relatedRows
+          ? '<div class=\"row\" style=\"margin:12px 0 8px\">Linked visitors</div>'+
+            '<table><thead><tr><th>Visitor</th><th>Last seen</th><th>Identity</th><th>Last IP</th><th>Link</th></tr></thead><tbody>'+relatedRows+'</tbody></table>'
+          : '';
+
+        const clusterEditor = cluster
+          ? '<div class=\"controls\" style=\"margin:10px 0\">'+
+              '<input class=\"input\" id=\"clusterInput\" value=\"'+(cluster.display_name||'').replace(/\"/g,'')+'\" placeholder=\"Cluster name\" />'+
+              '<button class=\"btn\" id=\"clusterSave\">Save cluster</button>'+
+            '</div>'
+          : '';
+
+        $('details').innerHTML=header+clusterEditor+relatedHtml+
           '<div class=\"row\" style=\"margin:12px 0 8px\">Recent sessions</div>'+
           (rows?('<table><thead><tr><th>When</th><th>Page</th><th>Device</th><th>Where</th><th>Summary</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div class=\"row\">No sessions.</div>');
 
@@ -803,6 +855,33 @@ export default function handler(_req: any, res: any) {
             }
           });
         }
+        const clusterSave=$('clusterSave');
+        if(clusterSave && cluster){
+          clusterSave.addEventListener('click', async ()=>{
+            const token=getToken();
+            const val=($('clusterInput') && $('clusterInput').value) ? $('clusterInput').value : '';
+            try{
+              const r=await fetch('/api/admin/visitor',{
+                method:'POST',
+                headers:{
+                  'content-type':'application/json',
+                  'accept':'application/json',
+                  'authorization': token?('Bearer '+token):''
+                },
+                body: JSON.stringify({ cluster_id: cluster.id, cluster_name: val })
+              });
+              if(!r.ok) throw new Error(await r.text());
+            }catch{
+              // ignore
+            }
+          });
+        }
+        $('details').querySelectorAll('tr[data-vid]').forEach((tr)=>{
+          tr.addEventListener('click', async ()=>{
+            const linkVid=tr.getAttribute('data-vid');
+            if(linkVid) await loadVisitor(linkVid);
+          });
+        });
         $('details').querySelectorAll('tr[data-sid]').forEach((tr)=>{
           tr.addEventListener('click', async ()=>{
             const sid=tr.getAttribute('data-sid');
@@ -1012,10 +1091,12 @@ export default function handler(_req: any, res: any) {
 	          if(!el) continue;
 	          if(v===view) el.classList.add('active'); else el.classList.remove('active');
 	        }
-	        const showBotsWrap=$('showBotsWrap');
-	        if(showBotsWrap) showBotsWrap.style.display = view==='sessions' ? '' : 'none';
-	        const mapBotsWrap=$('mapBotsWrap');
-	        if(mapBotsWrap) mapBotsWrap.style.display = view==='map' ? '' : 'none';
+        const showBotsWrap=$('showBotsWrap');
+        if(showBotsWrap) showBotsWrap.style.display = view==='sessions' ? '' : 'none';
+        const visitorBotsWrap=$('visitorBotsWrap');
+        if(visitorBotsWrap) visitorBotsWrap.style.display = view==='visitors' ? '' : 'none';
+        const mapBotsWrap=$('mapBotsWrap');
+        if(mapBotsWrap) mapBotsWrap.style.display = view==='map' ? '' : 'none';
 	        const rawWrap=$('rawWrap');
 	        if(rawWrap) rawWrap.style.display = (state.selectedSid && (view==='sessions' || view==='bots')) ? '' : 'none';
 
@@ -1051,10 +1132,14 @@ export default function handler(_req: any, res: any) {
 	        location.reload();
 	      });
 
-	      $('showBots').addEventListener('change', async (e)=>{
-	        state.showBots=e.target.checked;
-	        if(state.view==='sessions') await loadSessions();
-	      });
+      $('showBots').addEventListener('change', async (e)=>{
+        state.showBots=e.target.checked;
+        if(state.view==='sessions') await loadSessions();
+      });
+      $('showBotsVisitors').addEventListener('change', async (e)=>{
+        state.visitorsShowBots=e.target.checked;
+        if(state.view==='visitors') await loadVisitors();
+      });
 	      $('mapBots').addEventListener('change', async (e)=>{
 	        state.mapShowBots=e.target.checked;
 	        if(state.view==='map') await loadMap();

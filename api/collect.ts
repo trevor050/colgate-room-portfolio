@@ -298,8 +298,8 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // PTR (reverse DNS) — cached; skip bots.
-    if (!bot.isBot && ip) {
+    // PTR (reverse DNS) — cached; allowed for bots (no IPinfo usage).
+    if (ip) {
       const cached = await getPtrCached(ip);
       let ptr = cached.ptr;
       let ptrError = cached.error;

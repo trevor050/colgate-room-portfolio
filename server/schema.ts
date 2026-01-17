@@ -100,6 +100,14 @@ export function ensureSchema(): Promise<void> {
       await query(`CREATE INDEX IF NOT EXISTS idx_session_ips_sid ON session_ips(sid);`);
 
       await query(`
+        CREATE TABLE IF NOT EXISTS visitor_groups (
+          group_id TEXT PRIMARY KEY,
+          display_name TEXT,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      await query(`
         CREATE INDEX IF NOT EXISTS idx_events_sid_ts ON events(sid, ts);
       `);
 
