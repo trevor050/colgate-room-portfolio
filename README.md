@@ -41,4 +41,5 @@ PostHog is proxied through `/_i/*` to reduce third‑party blocking:
 Serverless endpoint `api/report.ts` can send a Discord message on `visit` and `session_end`.
 
 - Set `DISCORD_WEBHOOK_URL` in Vercel → Project → Settings → Environment Variables
+- (Optional) Set `DISCORD_BOT_WEBHOOK_URL` for suspected bot traffic
 - (Optional) Set `REPORT_ALLOWED_HOSTS` to your domains to reduce spam

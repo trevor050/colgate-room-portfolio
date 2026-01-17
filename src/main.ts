@@ -64,6 +64,8 @@ let overlayOpenedAtMs: number | null = null;
 let firstInteractionCaptured = false;
 let interactionCount = 0;
 const sessionStartMs = performance.now();
+let firstInteractionAtMs: number | null = null;
+const overlaySummary: Map<string, number> = new Map();
 
 // Animation state
 interface AnimationState {
@@ -302,7 +304,7 @@ function setupClientAnalytics() {
   };
 
   evaluate('init');
-  sendVisitReport('visit', { ts: new Date().toISOString() });
+  sendVisitReport('visit', { ts: new Date().toISOString(), first_interaction_seconds: null });
 
   const onChange = () => evaluate('viewport_change');
   try {
@@ -325,9 +327,18 @@ function setupClientAnalytics() {
         active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
       });
 
+      const overlays = Array.from(overlaySummary.entries())
+        .map(([key, seconds]) => ({ key, seconds }))
+        .sort((a, b) => b.seconds - a.seconds)
+        .slice(0, 10);
+
       sendVisitReport('session_end', {
         interactions: interactionCount,
         active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
+        overlays,
+        overlays_unique: overlaySummary.size,
+        first_interaction_seconds:
+          firstInteractionAtMs == null ? null : Math.round((firstInteractionAtMs - sessionStartMs) / 1000),
         ts: new Date().toISOString(),
       });
     },
@@ -1127,6 +1138,7 @@ function showOverlay(contentKey: string) {
   interactionCount += 1;
   if (!firstInteractionCaptured) {
     firstInteractionCaptured = true;
+    firstInteractionAtMs = performance.now();
     captureAnalytics('first_interaction', { via: 'open_overlay' });
   }
 
@@ -1149,10 +1161,12 @@ function setupOverlay() {
     overlayOpenedAtMs = null;
 
     if (overlayKey && openedAt != null) {
+      const openSeconds = Math.round((performance.now() - openedAt) / 1000);
+      overlaySummary.set(overlayKey, (overlaySummary.get(overlayKey) ?? 0) + openSeconds);
       captureAnalytics('close_overlay', {
         overlay: overlayKey,
         reason,
-        open_seconds: Math.round((performance.now() - openedAt) / 1000),
+        open_seconds: openSeconds,
       });
     } else {
       captureAnalytics('close_overlay', { overlay: overlayKey ?? 'unknown', reason });

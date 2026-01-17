@@ -12,11 +12,28 @@ function getClientIp(req: any): string | undefined {
   return getHeader(req, 'x-real-ip');
 }
 
+function decodeIfNeeded(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  // Vercel geo headers sometimes arrive URL-encoded (e.g. "San%20Jose").
+  try {
+    const normalized = value.replace(/\+/g, '%20');
+    return decodeURIComponent(normalized);
+  } catch {
+    return value;
+  }
+}
+
 function getVercelGeo(req: any) {
   return {
-    city: getHeader(req, 'x-vercel-ip-city'),
-    region: getHeader(req, 'x-vercel-ip-country-region'),
-    country: getHeader(req, 'x-vercel-ip-country'),
+    city: decodeIfNeeded(getHeader(req, 'x-vercel-ip-city')),
+    region: decodeIfNeeded(getHeader(req, 'x-vercel-ip-country-region')),
+    country: decodeIfNeeded(getHeader(req, 'x-vercel-ip-country')),
+    timezone: decodeIfNeeded(getHeader(req, 'x-vercel-ip-timezone')),
+    latitude: decodeIfNeeded(getHeader(req, 'x-vercel-ip-latitude')),
+    longitude: decodeIfNeeded(getHeader(req, 'x-vercel-ip-longitude')),
+    postalCode: decodeIfNeeded(getHeader(req, 'x-vercel-ip-postal-code')),
+    asn: decodeIfNeeded(getHeader(req, 'x-vercel-ip-asn')),
+    asName: decodeIfNeeded(getHeader(req, 'x-vercel-ip-as-name')),
   };
 }
 
@@ -75,6 +92,9 @@ async function readRawBody(req: any): Promise<string> {
 function formatDiscordMessage(payload: any, req: any) {
   const geo = getVercelGeo(req);
   const ua = getHeader(req, 'user-agent');
+  const ip = getClientIp(req);
+  const vercelId = getHeader(req, 'x-vercel-id');
+  const acceptLang = getHeader(req, 'accept-language');
 
   const locationBits = [geo.city, geo.region, geo.country].filter(Boolean);
   const location = locationBits.length ? locationBits.join(', ') : 'Unknown';
@@ -84,14 +104,25 @@ function formatDiscordMessage(payload: any, req: any) {
   const referrer = typeof payload?.referrer === 'string' ? payload.referrer : undefined;
   const isMobile = typeof payload?.is_mobile === 'boolean' ? payload.is_mobile : undefined;
   const orientation = typeof payload?.orientation === 'string' ? payload.orientation : undefined;
+  const sid = typeof payload?.sid === 'string' ? payload.sid : undefined;
+  const vid = typeof payload?.vid === 'string' ? payload.vid : undefined;
+  const overlays = Array.isArray(payload?.overlays) ? payload.overlays : undefined;
 
   const fields: { name: string; value: string; inline?: boolean }[] = [];
+  if (vid) fields.push({ name: 'Visitor ID', value: vid, inline: false });
+  if (sid) fields.push({ name: 'Session ID', value: sid, inline: false });
+  if (ip) fields.push({ name: 'IP', value: ip, inline: true });
   fields.push({ name: 'Event', value: event, inline: true });
   fields.push({ name: 'Location', value: location, inline: true });
+  if (geo.timezone) fields.push({ name: 'TZ', value: geo.timezone, inline: true });
+  if (geo.postalCode) fields.push({ name: 'Postal', value: geo.postalCode, inline: true });
+  if (geo.asn || geo.asName) fields.push({ name: 'Network', value: [geo.asn, geo.asName].filter(Boolean).join(' '), inline: false });
+  if (vercelId) fields.push({ name: 'Vercel', value: vercelId, inline: false });
   if (page) fields.push({ name: 'Page', value: page, inline: false });
   if (typeof isMobile === 'boolean') fields.push({ name: 'Mobile', value: isMobile ? 'Yes' : 'No', inline: true });
   if (orientation) fields.push({ name: 'Orientation', value: orientation, inline: true });
   if (referrer) fields.push({ name: 'Referrer', value: referrer, inline: false });
+  if (acceptLang) fields.push({ name: 'Lang', value: acceptLang.slice(0, 80), inline: false });
 
   // Include some session summary details if provided (no IP included).
   if (event === 'session_end') {
@@ -99,6 +130,17 @@ function formatDiscordMessage(payload: any, req: any) {
     const interactions = typeof payload?.interactions === 'number' ? payload.interactions : undefined;
     if (typeof seconds === 'number') fields.push({ name: 'Active (s)', value: String(seconds), inline: true });
     if (typeof interactions === 'number') fields.push({ name: 'Interactions', value: String(interactions), inline: true });
+    if (Array.isArray(overlays) && overlays.length) {
+      const compact = overlays
+        .slice(0, 6)
+        .map((o: any) => {
+          const key = typeof o?.key === 'string' ? o.key : 'unknown';
+          const s = typeof o?.seconds === 'number' ? o.seconds : undefined;
+          return s != null ? `${key} (${s}s)` : key;
+        })
+        .join(', ');
+      fields.push({ name: 'Overlays', value: compact, inline: false });
+    }
   }
 
   return {
@@ -115,6 +157,45 @@ function formatDiscordMessage(payload: any, req: any) {
       },
     ],
   };
+}
+
+function botScore(req: any, payload: any): { score: number; reasons: string[] } {
+  const reasons: string[] = [];
+  let score = 0;
+
+  const ua = (getHeader(req, 'user-agent') ?? '').toLowerCase();
+  const acceptLang = getHeader(req, 'accept-language');
+
+  const uaRules: Array<[RegExp, number, string]> = [
+    [/vercel-screenshot/i, 6, 'vercel-screenshot'],
+    [/headless/i, 5, 'headless'],
+    [/\bbot\b|\bcrawl\b|\bspider\b/i, 4, 'bot/crawler'],
+    [/curl|wget|python-requests|httpclient|go-http-client/i, 4, 'http-client'],
+  ];
+
+  for (const [re, pts, label] of uaRules) {
+    if (re.test(ua)) {
+      score += pts;
+      reasons.push(label);
+    }
+  }
+
+  if (!acceptLang) {
+    score += 1;
+    reasons.push('no accept-language');
+  }
+
+  const event = payload?.event;
+  if (event === 'session_end') {
+    const seconds = typeof payload?.active_seconds === 'number' ? payload.active_seconds : 0;
+    const interactions = typeof payload?.interactions === 'number' ? payload.interactions : 0;
+    if (seconds <= 1 && interactions === 0) {
+      score += 2;
+      reasons.push('0-interaction short session');
+    }
+  }
+
+  return { score, reasons };
 }
 
 // Basic in-memory rate limit (best-effort, not persistent across serverless instances).
@@ -151,8 +232,9 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-    if (!webhookUrl) {
+    const primaryWebhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    const botWebhookUrl = process.env.DISCORD_BOT_WEBHOOK_URL;
+    if (!primaryWebhookUrl && !botWebhookUrl) {
       // If not configured, don't break the site.
       res.statusCode = 204;
       res.end();
@@ -191,8 +273,22 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
+    const bot = botScore(req, payload);
+    const targetWebhookUrl = bot.score >= 6 && botWebhookUrl ? botWebhookUrl : primaryWebhookUrl;
+    if (!targetWebhookUrl) {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
     const discordBody = formatDiscordMessage(payload, req);
-    const discordRes = await fetch(webhookUrl, {
+    if (bot.score >= 6) {
+      discordBody.embeds[0].title = 'Possible bot visit';
+      discordBody.embeds[0].color = 0xe11d48;
+      discordBody.embeds[0].fields.unshift({ name: 'Bot score', value: `${bot.score} (${bot.reasons.join(', ') || 'n/a'})`, inline: false });
+    }
+
+    const discordRes = await fetch(targetWebhookUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(discordBody),
@@ -211,4 +307,3 @@ export default async function handler(req: any, res: any) {
     res.end('Internal Server Error');
   }
 }
-
