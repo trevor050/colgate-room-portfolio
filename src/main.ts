@@ -14,6 +14,13 @@ const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST as string | undefin
 if (import.meta.env.PROD && posthogKey) {
   posthog.init(posthogKey, {
     api_host: posthogHost ?? 'https://us.i.posthog.com',
+    capture_pageview: true,
+    capture_pageleave: true,
+    loaded: (ph) => {
+      // This app is mostly a canvas; explicit events help verify installation.
+      ph.capture('$pageview');
+      ph.capture('site_loaded');
+    },
   });
 }
 
