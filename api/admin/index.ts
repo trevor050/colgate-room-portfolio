@@ -24,7 +24,7 @@ export default function handler(_req: any, res: any) {
         font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
       }
       html,body{height:100%}
-      body{margin:0;min-height:100vh;background:radial-gradient(1200px 700px at 30% 10%,#182045,#0b1020);background-repeat:no-repeat;background-attachment:fixed;color:var(--text)}
+      body{margin:0;min-height:100vh;background:radial-gradient(1200px 700px at 30% 10%,#182045,var(--bg));background-repeat:no-repeat;background-attachment:fixed;color:var(--text)}
       .wrap{max-width:1180px;margin:0 auto;padding:24px}
       header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
       h1{margin:0;font-size:18px;letter-spacing:.3px}
@@ -154,6 +154,8 @@ export default function handler(_req: any, res: any) {
           bots:null,
           map:null,
           settings:null,
+          theme:'midnight',
+          sessionsPage:1,
           cache:{ sessionLite:{}, sessionFull:{}, visitor:{} },
           lastUpdatedAt:null,
         };
@@ -198,6 +200,42 @@ export default function handler(_req: any, res: any) {
       function showApp(){
         $('authRoot').style.display='none';
         $('appRoot').style.display='';
+      }
+      function refreshVisitorUI(){
+        if(state.selectedVid) void loadVisitor(state.selectedVid);
+        void loadVisitors();
+      }
+      function setTheme(theme){
+        const root = document.documentElement;
+        if(theme==='ember'){
+          root.style.setProperty('--bg','#120b0b');
+          root.style.setProperty('--panel','rgba(255,214,204,.06)');
+          root.style.setProperty('--border','rgba(255,214,204,.18)');
+          root.style.setProperty('--text','rgba(255,248,244,.95)');
+          root.style.setProperty('--muted','rgba(255,206,196,.65)');
+          root.style.setProperty('--gold','#ffb86b');
+        }else if(theme==='sand'){
+          root.style.setProperty('--bg','#10100b');
+          root.style.setProperty('--panel','rgba(245,232,200,.08)');
+          root.style.setProperty('--border','rgba(245,232,200,.18)');
+          root.style.setProperty('--text','rgba(255,250,240,.95)');
+          root.style.setProperty('--muted','rgba(240,226,195,.65)');
+          root.style.setProperty('--gold','#f6d365');
+        }else if(theme==='mint'){
+          root.style.setProperty('--bg','#081014');
+          root.style.setProperty('--panel','rgba(196,255,242,.08)');
+          root.style.setProperty('--border','rgba(196,255,242,.18)');
+          root.style.setProperty('--text','rgba(232,255,250,.95)');
+          root.style.setProperty('--muted','rgba(186,245,234,.65)');
+          root.style.setProperty('--gold','#6ee7b7');
+        }else{
+          root.style.setProperty('--bg','#0b1020');
+          root.style.setProperty('--panel','rgba(255,255,255,.06)');
+          root.style.setProperty('--border','rgba(255,255,255,.12)');
+          root.style.setProperty('--text','rgba(255,255,255,.92)');
+          root.style.setProperty('--muted','rgba(255,255,255,.65)');
+          root.style.setProperty('--gold','#ffd700');
+        }
       }
       function setLastUpdated(ts){
         state.lastUpdatedAt = ts || new Date();
@@ -252,6 +290,12 @@ export default function handler(_req: any, res: any) {
       function renderSessions(){
         const rows=state.sessions.filter(matchesSearch);
         if(!rows.length){ $('list').innerHTML='<div class=\"row\">No sessions found.</div>'; return; }
+        const pageSize = 8;
+        const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+        if(state.sessionsPage > pageCount) state.sessionsPage = 1;
+        const page = Math.max(1, state.sessionsPage || 1);
+        const start = (page - 1) * pageSize;
+        const pageRows = rows.slice(start, start + pageSize);
         function inlineHtmlForSid(sid){
           const cached = state.cache.sessionLite[sid];
           if(!cached) return '<div class=\"row\">Loading session…</div>';
@@ -286,7 +330,7 @@ export default function handler(_req: any, res: any) {
         }
 
         const body=[];
-        for(const s of rows){
+        for(const s of pageRows){
           const flag=s.is_bot?'<span class=\"tag bad\">bot</span>':'<span class=\"tag good\">human?</span>';
           const loc=[s.city,s.region,s.country].filter(Boolean).join(', ');
           const net=[s.asn,s.as_name].filter(Boolean).join(' ');
@@ -318,6 +362,13 @@ export default function handler(_req: any, res: any) {
           }
         }
 
+        const pager = pageCount > 1
+          ? '<div class=\"controls\" style=\"margin-top:10px\">'+
+              '<button class=\"btn\" id=\"pagePrev\">Prev</button>'+
+              '<span class=\"pill\">Page '+page+' / '+pageCount+'</span>'+
+              '<button class=\"btn\" id=\"pageNext\">Next</button>'+
+            '</div>'
+          : '';
         const html=[
           '<table>',
           '<thead><tr>',
@@ -325,7 +376,8 @@ export default function handler(_req: any, res: any) {
           '</tr></thead>',
           '<tbody>',
           ...body,
-          '</tbody></table>'
+          '</tbody></table>',
+          pager
         ].join('');
         $('list').innerHTML=html;
         $('list').querySelectorAll('tr.sessionRow[data-sid]').forEach((tr)=>{
@@ -343,6 +395,16 @@ export default function handler(_req: any, res: any) {
             void loadSessionLite(sid);
             setTimeout(()=>{ void loadSession(sid); }, 0);
           });
+        });
+        const prev=$('pagePrev');
+        if(prev) prev.addEventListener('click', ()=>{
+          state.sessionsPage = Math.max(1, page - 1);
+          renderSessions();
+        });
+        const next=$('pageNext');
+        if(next) next.addEventListener('click', ()=>{
+          state.sessionsPage = Math.min(pageCount, page + 1);
+          renderSessions();
         });
       }
 
@@ -636,6 +698,13 @@ export default function handler(_req: any, res: any) {
         const toMonths=(days)=> Math.max(1, Math.round(Number(days||30) / 30));
         $('list').innerHTML=
           '<div class=\"row\" style=\"margin-bottom:8px\">Settings</div>'+
+          '<div class=\"row\" style=\"margin-bottom:8px\">Theme</div>'+
+          '<div class=\"controls\" style=\"margin-bottom:12px\">'+
+            '<label class=\"tag\"><input type=\"radio\" name=\"theme\" value=\"midnight\" '+(state.theme==='midnight'?'checked':'')+' /> midnight</label>'+
+            '<label class=\"tag\"><input type=\"radio\" name=\"theme\" value=\"ember\" '+(state.theme==='ember'?'checked':'')+' /> ember</label>'+
+            '<label class=\"tag\"><input type=\"radio\" name=\"theme\" value=\"sand\" '+(state.theme==='sand'?'checked':'')+' /> sand</label>'+
+            '<label class=\"tag\"><input type=\"radio\" name=\"theme\" value=\"mint\" '+(state.theme==='mint'?'checked':'')+' /> mint</label>'+
+          '</div>'+
           '<div class=\"pre\">'+
             'Retention\\n'+
             '  Humans: keep sessions for '+toMonths(s.retention_human_days)+' months\\n'+
@@ -691,6 +760,15 @@ export default function handler(_req: any, res: any) {
             }
           });
         }
+
+        $('list').querySelectorAll('input[name=\"theme\"]').forEach((el)=>{
+          el.addEventListener('change', (e)=>{
+            const val = e.target?.value || 'midnight';
+            state.theme = val;
+            setTheme(val);
+            localStorage.setItem('admin_theme', val);
+          });
+        });
       }
 
       function render(){
@@ -712,6 +790,7 @@ export default function handler(_req: any, res: any) {
         const bots=state.showBots?'1':'0';
         const data=await api('/api/admin/sessions?bots='+bots);
         state.sessions=data.sessions||[];
+        state.sessionsPage = 1;
         setLastUpdated(new Date());
         render();
       }
@@ -841,7 +920,7 @@ export default function handler(_req: any, res: any) {
         }).join('');
 
         const actionsHtml = actionRows
-          ? '<details style=\"margin-top:12px\"><summary class=\"row\">Top actions</summary>'+
+          ? '<details style=\"margin-top:12px\"><summary class=\"row\">Top actions <span class=\"mono\" style=\"margin-left:auto\">▾</span></summary>'+
             '<table><thead><tr><th>Action</th><th>Count</th></tr></thead><tbody>'+actionRows+'</tbody></table></details>'
           : '';
 
@@ -880,8 +959,7 @@ export default function handler(_req: any, res: any) {
                 body: JSON.stringify({ vid: v.vid, display_name: val })
               });
               if(!r.ok) throw new Error(await r.text());
-              // Refresh visitors list names in the background.
-              void loadVisitors();
+              refreshVisitorUI();
             }catch{
               // ignore
             }
@@ -903,6 +981,7 @@ export default function handler(_req: any, res: any) {
                 body: JSON.stringify({ cluster_id: cluster.id, cluster_name: val })
               });
               if(!r.ok) throw new Error(await r.text());
+              refreshVisitorUI();
             }catch{
               // ignore
             }
@@ -1245,12 +1324,16 @@ export default function handler(_req: any, res: any) {
         if(status && status.admin_token_configured===false){ showAuth('ADMIN_TOKEN is not configured in Vercel env vars.', true); return; }
         if(status && status.db_configured===false){ showAuth('DATABASE_URL/POSTGRES_URL is not configured in Vercel env vars.', true); return; }
 
+        const savedTheme = localStorage.getItem('admin_theme');
+        if(savedTheme){ state.theme = savedTheme; setTheme(savedTheme); }
+
         const saved=getToken();
         if(!saved){ showAuth('', false); return; }
         showAuth('Checking saved token…', false);
 	        const ok=await checkAuth(saved);
 	        if(!ok){ forgetToken(); showAuth('Saved token was invalid. Please re-enter.', true); return; }
 	        showApp();
+          if(savedTheme){ setTheme(savedTheme); }
           startAutoRefresh();
           const st = await loadStatus(saved);
           if(st && st.settings){
