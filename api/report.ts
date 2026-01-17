@@ -297,11 +297,9 @@ export default async function handler(req: any, res: any) {
     };
 
     // Best-effort: never error the site if Discord rejects/ratelimits.
-    // If a bot webhook is configured but broken, fall back to the primary channel.
-    let discordRes = await send(targetWebhookUrl);
-    if (!discordRes.ok && targetWebhookUrl !== primaryWebhookUrl && primaryWebhookUrl) {
-      discordRes = await send(primaryWebhookUrl);
-    }
+    // Route suspected bots to the bot webhook when configured.
+    // (No fallback for bots, so they stay separated from the main channel.)
+    await send(targetWebhookUrl);
 
     res.statusCode = 204;
     res.end();
