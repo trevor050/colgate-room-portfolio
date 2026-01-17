@@ -27,3 +27,10 @@ All portfolio text/content lives in `src/content.ts`.
 
 - Per-college links: add `?college=colgate` (or any value) to tag sessions.
 - Exclude your own device: visit `?internal=1` once (to re-enable: `?internal=0`).
+
+### PostHog proxy (recommended)
+
+PostHog is proxied through `/_i/*` to reduce third‑party blocking:
+
+- Dev: proxied via `vite.config.ts`
+- Prod: proxied via `vercel.json`

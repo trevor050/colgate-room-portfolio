@@ -10,7 +10,6 @@ if (import.meta.env.PROD) {
 }
 
 const posthogKey = import.meta.env.VITE_PUBLIC_POSTHOG_KEY as string | undefined;
-const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST as string | undefined;
 if (import.meta.env.PROD && posthogKey) {
   const url = new URL(window.location.href);
   const params = url.searchParams;
@@ -28,9 +27,14 @@ if (import.meta.env.PROD && posthogKey) {
   const isInternal = localStorage.getItem('ph_internal') === '1';
 
   posthog.init(posthogKey, {
-    api_host: posthogHost ?? 'https://us.i.posthog.com',
+    // First-party proxy route (less likely to be blocked than `us.i.posthog.com`).
+    // - Dev is proxied via `vite.config.ts`
+    // - Prod is rewritten via `vercel.json`
+    api_host: '/_i',
     capture_pageview: true,
     capture_pageleave: true,
+    // Keep it lightweight (we only need analytics + recordings).
+    autocapture: true,
     loaded: (ph) => {
       // This app is mostly a canvas; explicit events help verify installation.
       ph.capture('$pageview');
@@ -54,6 +58,12 @@ if (import.meta.env.PROD && posthogKey) {
 // Room dimensions
 const ROOM_WIDTH = 800;
 const ROOM_HEIGHT = 600;
+
+let currentOverlayKey: string | null = null;
+let overlayOpenedAtMs: number | null = null;
+let firstInteractionCaptured = false;
+let interactionCount = 0;
+const sessionStartMs = performance.now();
 
 // Animation state
 interface AnimationState {
@@ -192,6 +202,76 @@ async function init() {
   hint.className = 'hint';
   hint.textContent = 'Click the glowing objects to explore';
   document.body.appendChild(hint);
+
+  setupClientAnalytics();
+}
+
+function captureAnalytics(event: string, properties: Record<string, unknown> = {}) {
+  if (!import.meta.env.PROD || !posthogKey) return;
+  try {
+    posthog.capture(event, {
+      ...properties,
+      is_mobile: window.matchMedia('(max-width: 900px)').matches,
+      orientation: window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape',
+      viewport_w: window.innerWidth,
+      viewport_h: window.innerHeight,
+    });
+  } catch {
+    // noop
+  }
+}
+
+function setupClientAnalytics() {
+  const isMobileMq = window.matchMedia('(max-width: 900px)');
+  const isPortraitMq = window.matchMedia('(orientation: portrait)');
+
+  let mobileBannerCaptured = false;
+  let rotatePromptActive = false;
+
+  const evaluate = (reason: string) => {
+    const isMobile = isMobileMq.matches;
+    const isPortrait = isPortraitMq.matches;
+
+    if (isMobile && !mobileBannerCaptured) {
+      mobileBannerCaptured = true;
+      captureAnalytics('mobile_warning_shown', { reason });
+    }
+
+    const shouldShowRotatePrompt = isMobile && isPortrait;
+    if (shouldShowRotatePrompt && !rotatePromptActive) {
+      rotatePromptActive = true;
+      captureAnalytics('rotate_prompt_shown', { reason });
+    } else if (!shouldShowRotatePrompt && rotatePromptActive) {
+      rotatePromptActive = false;
+      captureAnalytics('rotate_prompt_dismissed', { reason });
+    }
+  };
+
+  evaluate('init');
+
+  const onChange = () => evaluate('viewport_change');
+  try {
+    isMobileMq.addEventListener('change', onChange);
+    isPortraitMq.addEventListener('change', onChange);
+  } catch {
+    // Safari fallback
+    isMobileMq.addListener(onChange);
+    isPortraitMq.addListener(onChange);
+  }
+
+  window.addEventListener('resize', onChange, { passive: true });
+  window.addEventListener('orientationchange', () => evaluate('orientationchange'), { passive: true });
+
+  window.addEventListener(
+    'pagehide',
+    () => {
+      captureAnalytics('session_summary', {
+        interactions: interactionCount,
+        active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
+      });
+    },
+    { passive: true }
+  );
 }
 
 function drawRoom(room: Container, _app: Application) {
@@ -983,28 +1063,52 @@ function showOverlay(contentKey: string) {
   
   overlay.classList.add('visible');
 
-  if (import.meta.env.PROD && posthogKey) {
-    posthog.capture('open_overlay', { overlay: contentKey });
+  interactionCount += 1;
+  if (!firstInteractionCaptured) {
+    firstInteractionCaptured = true;
+    captureAnalytics('first_interaction', { via: 'open_overlay' });
   }
+
+  currentOverlayKey = contentKey;
+  overlayOpenedAtMs = performance.now();
+  captureAnalytics('open_overlay', { overlay: contentKey });
 }
 
 function setupOverlay() {
   const overlay = document.getElementById('overlay')!;
   const closeBtn = document.getElementById('close-overlay')!;
 
-  closeBtn.addEventListener('click', () => {
+  const hide = (reason: string) => {
+    if (!overlay.classList.contains('visible')) return;
     overlay.classList.remove('visible');
-  });
+
+    const overlayKey = currentOverlayKey;
+    const openedAt = overlayOpenedAtMs;
+    currentOverlayKey = null;
+    overlayOpenedAtMs = null;
+
+    if (overlayKey && openedAt != null) {
+      captureAnalytics('close_overlay', {
+        overlay: overlayKey,
+        reason,
+        open_seconds: Math.round((performance.now() - openedAt) / 1000),
+      });
+    } else {
+      captureAnalytics('close_overlay', { overlay: overlayKey ?? 'unknown', reason });
+    }
+  };
+
+  closeBtn.addEventListener('click', () => hide('button'));
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
-      overlay.classList.remove('visible');
+      hide('backdrop');
     }
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      overlay.classList.remove('visible');
+      hide('escape');
     }
   });
 }

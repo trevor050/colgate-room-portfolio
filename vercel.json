@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/_i/:path*",
+      "destination": "https://us.i.posthog.com/:path*"
+    }
+  ]
+}
+
