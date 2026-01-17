@@ -89,13 +89,23 @@ export default function handler(_req: any, res: any) {
       const $ = (id) => document.getElementById(id);
       const state = { view: 'sessions', sessions: [], visitors: [], showBots: false, search: '' };
 
-      function api(path) {
-        const token = localStorage.getItem('admin_token') || '';
-        return fetch(path, { headers: { 'accept': 'application/json', 'authorization': token ? ('Bearer ' + token) : '' } }).then(async (r) => {
-          if (!r.ok) throw new Error(await r.text());
-          return r.json();
-        });
-      }
+	      function api(path) {
+	        const token = localStorage.getItem('admin_token') || '';
+	        return fetch(path, { headers: { 'accept': 'application/json', 'authorization': token ? ('Bearer ' + token) : '' } }).then(async (r) => {
+	          if (!r.ok) throw new Error(await r.text());
+	          return r.json();
+	        });
+	      }
+
+	      async function loadStatus() {
+	        try {
+	          const r = await fetch('/api/admin/status', { headers: { 'accept': 'application/json' } });
+	          if (!r.ok) return null;
+	          return await r.json();
+	        } catch {
+	          return null;
+	        }
+	      }
 
       function fmtDate(value) {
         if (!value) return '';
@@ -284,15 +294,28 @@ export default function handler(_req: any, res: any) {
         else await loadVisitors();
       });
 
-      // initial load
-      if (!localStorage.getItem('admin_token')) {
-        $('list').innerHTML = '<div class=\"row\">Enter <span class=\"mono\">ADMIN_TOKEN</span> above to load analytics.</div>';
-      } else {
-        loadSessions().catch((err) => {
-          $('list').innerHTML = '<div class=\"row\" style=\"color:var(--red)\">Failed: ' + (err && err.message ? err.message : err) + '</div>';
-        });
-      }
-    </script>
-  </body>
-</html>`);
+	      // initial load
+	      (async () => {
+	        const status = await loadStatus();
+	        if (status && status.admin_token_configured === false) {
+	          $('list').innerHTML = '<div class=\"row\">Set <span class=\"mono\">ADMIN_TOKEN</span> in Vercel env vars, then refresh.</div>';
+	          return;
+	        }
+	        if (status && status.db_configured === false) {
+	          $('list').innerHTML = '<div class=\"row\">Set <span class=\"mono\">DATABASE_URL</span> (or <span class=\"mono\">POSTGRES_URL</span>) in Vercel env vars, then refresh.</div>';
+	          return;
+	        }
+
+	        if (!localStorage.getItem('admin_token')) {
+	          $('list').innerHTML = '<div class=\"row\">Enter <span class=\"mono\">ADMIN_TOKEN</span> above to load analytics.</div>';
+	          return;
+	        }
+
+	        loadSessions().catch((err) => {
+	          $('list').innerHTML = '<div class=\"row\" style=\"color:var(--red)\">Failed: ' + (err && err.message ? err.message : err) + '</div>';
+	        });
+	      })();
+	    </script>
+	  </body>
+	</html>`);
 }
