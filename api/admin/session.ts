@@ -47,6 +47,7 @@ export default async function handler(req: any, res: any) {
   const session = {
     sid: sessionRow.sid,
     vid: sessionRow.vid,
+    display_name: null as string | null,
     started_at: sessionRow.started_at,
     ended_at: sessionRow.ended_at,
     ip: sessionRow.ip,
@@ -68,6 +69,13 @@ export default async function handler(req: any, res: any) {
     first_interaction_seconds: sessionRow.first_interaction_seconds,
     overlays: sessionRow.overlays,
   };
+
+  try {
+    const dnRes = await query<any>(`SELECT display_name FROM visitors WHERE vid = $1 LIMIT 1`, [sessionRow.vid]);
+    session.display_name = dnRes.rows[0]?.display_name ?? null;
+  } catch {
+    session.display_name = null;
+  }
 
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');

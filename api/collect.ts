@@ -12,6 +12,7 @@ import { getVercelGeo } from '../server/geo.js';
 import { computeBotScore } from '../server/bot.js';
 import { fetchAndCacheIpinfo, getIpinfoCached } from '../server/ipinfo.js';
 import { fetchAndCachePtr, getPtrCached } from '../server/ptr.js';
+import { makeDisplayName } from '../server/names.js';
 
 type IncomingEvent = {
   type: string;
@@ -118,11 +119,15 @@ export default async function handler(req: any, res: any) {
 
     const activeSeconds = typeof summary?.active_seconds === 'number' ? summary.active_seconds : null;
     const interactions = typeof summary?.interactions === 'number' ? summary.interactions : null;
+    const idleSeconds = typeof summary?.idle_seconds === 'number' ? summary.idle_seconds : null;
+    const sessionSeconds = typeof summary?.session_seconds === 'number' ? summary.session_seconds : null;
 
     const bot = computeBotScore({
       userAgent,
       acceptLanguage,
       activeSeconds,
+      idleSeconds,
+      sessionSeconds,
       interactions,
     });
 
@@ -130,15 +135,24 @@ export default async function handler(req: any, res: any) {
 
     await query(
       `
-        INSERT INTO visitors (vid, first_ip, last_ip, first_user_agent, last_user_agent, first_referrer, last_referrer)
-        VALUES ($1, $2, $2, $3, $3, $4, $4)
+        INSERT INTO visitors (
+          vid,
+          display_name,
+          first_ip,
+          last_ip,
+          first_user_agent,
+          last_user_agent,
+          first_referrer,
+          last_referrer
+        )
+        VALUES ($1, $2, $3, $3, $4, $4, $5, $5)
         ON CONFLICT (vid) DO UPDATE SET
           last_seen_at = NOW(),
           last_ip = COALESCE(EXCLUDED.last_ip, visitors.last_ip),
           last_user_agent = COALESCE(EXCLUDED.last_user_agent, visitors.last_user_agent),
           last_referrer = COALESCE(EXCLUDED.last_referrer, visitors.last_referrer)
       `,
-      [vid, ip ?? null, userAgent, referrer]
+      [vid, makeDisplayName(vid), ip ?? null, userAgent, referrer]
     );
 
     const startedAt =

@@ -12,6 +12,7 @@ export type TelemetrySummary = {
 
 type TelemetryClientOptions = {
   endpoint?: string;
+  persistVisitorId?: 'localStorage' | 'cookie';
   shouldIgnore?: () => boolean;
   isMobile?: () => boolean;
   orientation?: () => 'portrait' | 'landscape';
@@ -39,22 +40,42 @@ const trackingSidKey = 'visit_sid';
 const trackingVidKey = 'visit_vid';
 const trackingVisitSentKey = 'visit_reported';
 
-function getTrackingIds(): { vid: string; sid: string } {
+function readCookie(name: string): string | null {
+  try {
+    const needle = `${name}=`;
+    const parts = document.cookie ? document.cookie.split('; ') : [];
+    for (const part of parts) {
+      if (part.startsWith(needle)) return decodeURIComponent(part.slice(needle.length));
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCookie(name: string, value: string) {
+  const secure = location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=31536000; Path=/; SameSite=Lax${secure}`;
+}
+
+function getTrackingIds(persistVisitorId: 'localStorage' | 'cookie'): { vid: string; sid: string } {
   const sid =
     sessionStorage.getItem(trackingSidKey) ??
     (crypto.randomUUID?.() ?? `sid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
   sessionStorage.setItem(trackingSidKey, sid);
 
-  const vid =
-    localStorage.getItem(trackingVidKey) ??
-    (crypto.randomUUID?.() ?? `vid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
-  localStorage.setItem(trackingVidKey, vid);
+  const existingVid =
+    persistVisitorId === 'cookie' ? readCookie(trackingVidKey) : localStorage.getItem(trackingVidKey);
+  const vid = existingVid ?? (crypto.randomUUID?.() ?? `vid_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`);
+  if (persistVisitorId === 'cookie') writeCookie(trackingVidKey, vid);
+  else localStorage.setItem(trackingVidKey, vid);
 
   return { vid, sid };
 }
 
 export function createTelemetryClient(options: TelemetryClientOptions = {}) {
   const endpoint = options.endpoint ?? '/api/collect';
+  const persistVisitorId = options.persistVisitorId ?? 'localStorage';
   const shouldIgnore = options.shouldIgnore ?? (() => false);
   const isMobile = options.isMobile ?? (() => window.matchMedia('(max-width: 900px)').matches);
   const orientation = options.orientation ?? (() => (window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'));
@@ -146,7 +167,7 @@ export function createTelemetryClient(options: TelemetryClientOptions = {}) {
     if (shouldIgnore()) return Promise.resolve();
     if (!queue.length && !opts.summary) return Promise.resolve();
 
-    const { vid, sid } = getTrackingIds();
+    const { vid, sid } = getTrackingIds(persistVisitorId);
     const payload = {
       vid,
       sid,
@@ -309,4 +330,3 @@ export function createTelemetryClient(options: TelemetryClientOptions = {}) {
     installGlobalTracking,
   };
 }
-

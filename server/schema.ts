@@ -8,6 +8,7 @@ export function ensureSchema(): Promise<void> {
       await query(`
         CREATE TABLE IF NOT EXISTS visitors (
           vid TEXT PRIMARY KEY,
+          display_name TEXT,
           first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           first_ip TEXT,
@@ -61,6 +62,7 @@ export function ensureSchema(): Promise<void> {
       `);
 
       // Backfill for older schemas (idempotent).
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS display_name TEXT;`);
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr TEXT;`);
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_ip TEXT;`);
       await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_fetched_at TIMESTAMPTZ;`);

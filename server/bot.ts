@@ -2,6 +2,8 @@ export function computeBotScore(input: {
   userAgent?: string;
   acceptLanguage?: string;
   activeSeconds?: number | null;
+  idleSeconds?: number | null;
+  sessionSeconds?: number | null;
   interactions?: number | null;
 }): { score: number; reasons: string[]; isBot: boolean } {
   const reasons: string[] = [];
@@ -35,7 +37,16 @@ export function computeBotScore(input: {
     }
   }
 
-  const isBot = score >= 6;
+  // Very high idle share is often non-human (tab left open / automation).
+  if (typeof input.idleSeconds === 'number' && typeof input.sessionSeconds === 'number' && input.sessionSeconds > 0) {
+    const idleShare = input.idleSeconds / input.sessionSeconds;
+    if (idleShare >= 0.95 && input.sessionSeconds >= 10) {
+      score += 1;
+      reasons.push('mostly idle');
+    }
+  }
+
+  const threshold = Number(process.env.BOT_SCORE_THRESHOLD ?? 6);
+  const isBot = score >= (Number.isFinite(threshold) ? threshold : 6);
   return { score, reasons, isBot };
 }
-

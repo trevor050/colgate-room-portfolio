@@ -8,7 +8,7 @@ export default async function handler(_req: any, res: any) {
       db_configured: Boolean(getPool()),
       admin_token_configured: Boolean(process.env.ADMIN_TOKEN),
       ipinfo_token_configured: Boolean(process.env.IPINFO_TOKEN),
+      bot_score_threshold: process.env.BOT_SCORE_THRESHOLD ?? '6',
     }),
   );
 }
-

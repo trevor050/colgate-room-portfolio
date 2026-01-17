@@ -48,6 +48,12 @@ This repo contains a small, first‑party analytics system intended for low‑tr
 
 - `IPINFO_TOKEN` (skipped for bots; cached per IP)
 - `REPORT_ALLOWED_HOSTS` (comma-separated allowlist for Origin/Referer)
+- `BOT_SCORE_THRESHOLD` (default: `6`)
+
+## Client configuration (Vite)
+
+- `VITE_TRACKER_ENDPOINT` (default: `/api/collect`)
+- `VITE_TRACKER_PERSIST` (`localStorage` or `cookie`, default: `localStorage`)
 
 ## Open-source spin-out checklist
 
@@ -55,4 +61,3 @@ This repo contains a small, first‑party analytics system intended for low‑tr
 - Provide a minimal demo UI (or keep the current `/api/admin` page)
 - Add a migration strategy (current `ensureSchema()` uses idempotent `CREATE TABLE` + `ALTER TABLE ADD COLUMN IF NOT EXISTS`)
 - Add a license, contributing guide, and security note for admin token handling
-

@@ -3,6 +3,7 @@ import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEven
 import { GlowFilter } from 'pixi-filters';
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
+import { getTrackerConfig } from './tracking/config';
 import { createTelemetryClient } from './tracking/telemetry';
 import { content } from './content';
 
@@ -233,7 +234,10 @@ function isInternalDevice(): boolean {
   }
 }
 
+const trackerConfig = getTrackerConfig();
 const telemetry = createTelemetryClient({
+  endpoint: trackerConfig.endpoint,
+  persistVisitorId: trackerConfig.persist,
   shouldIgnore: () => !import.meta.env.PROD || isInternalDevice(),
 });
 

@@ -22,6 +22,7 @@ export default async function handler(req: any, res: any) {
       SELECT
         sid,
         vid,
+        (SELECT display_name FROM visitors v WHERE v.vid = sessions.vid) AS display_name,
         started_at,
         ended_at,
         ip,
@@ -51,15 +52,16 @@ export default async function handler(req: any, res: any) {
       const geo = s.geo ?? {};
       const ipinfo = s.ipinfo ?? {};
 
-      return {
-        sid: s.sid,
-        vid: s.vid,
-        vid_short: typeof s.vid === 'string' ? s.vid.slice(0, 8) : '',
-        started_at: s.started_at,
-        ended_at: s.ended_at,
-        ip: s.ip,
-        ptr: s.ptr ?? null,
-        is_bot: s.is_bot,
+    return {
+      sid: s.sid,
+      vid: s.vid,
+      vid_short: typeof s.vid === 'string' ? s.vid.slice(0, 8) : '',
+      display_name: s.display_name ?? null,
+      started_at: s.started_at,
+      ended_at: s.ended_at,
+      ip: s.ip,
+      ptr: s.ptr ?? null,
+      is_bot: s.is_bot,
         bot_score: s.bot_score,
         bot_reasons: s.bot_reasons,
         is_mobile: s.is_mobile,
