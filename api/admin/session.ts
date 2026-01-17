@@ -50,6 +50,7 @@ export default async function handler(req: any, res: any) {
     started_at: sessionRow.started_at,
     ended_at: sessionRow.ended_at,
     ip: sessionRow.ip,
+    ptr: sessionRow.ptr ?? null,
     location: [geo.city, geo.region, geo.country].filter(Boolean).join(', ') || null,
     org: ipinfo.org ?? ipinfo.company?.name ?? null,
     net: [geo.asn, geo.asName].filter(Boolean).join(' ') || null,

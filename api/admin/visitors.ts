@@ -22,6 +22,7 @@ export default async function handler(req: any, res: any) {
         last_seen_at,
         first_ip,
         last_ip,
+        ptr,
         ipinfo
       FROM visitors
       ORDER BY last_seen_at DESC
@@ -37,6 +38,7 @@ export default async function handler(req: any, res: any) {
       last_seen_at: v.last_seen_at,
       first_ip: v.first_ip,
       last_ip: v.last_ip,
+      ptr: v.ptr ?? null,
       city: ipinfo.city ?? null,
       region: ipinfo.region ?? null,
       country: ipinfo.country ?? null,

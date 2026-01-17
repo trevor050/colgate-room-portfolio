@@ -20,7 +20,12 @@ export function ensureSchema(): Promise<void> {
           ipinfo_ip TEXT,
           ipinfo_fetched_at TIMESTAMPTZ,
           ipinfo_error TEXT,
-          ipinfo_error_at TIMESTAMPTZ
+          ipinfo_error_at TIMESTAMPTZ,
+          ptr TEXT,
+          ptr_ip TEXT,
+          ptr_fetched_at TIMESTAMPTZ,
+          ptr_error TEXT,
+          ptr_error_at TIMESTAMPTZ
         );
       `);
 
@@ -31,6 +36,7 @@ export function ensureSchema(): Promise<void> {
           started_at TIMESTAMPTZ NOT NULL,
           ended_at TIMESTAMPTZ,
           ip TEXT,
+          ptr TEXT,
           user_agent TEXT,
           accept_language TEXT,
           referrer TEXT,
@@ -51,6 +57,15 @@ export function ensureSchema(): Promise<void> {
           updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
       `);
+
+      // Backfill for older schemas (idempotent).
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr TEXT;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_ip TEXT;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_fetched_at TIMESTAMPTZ;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_error TEXT;`);
+      await query(`ALTER TABLE visitors ADD COLUMN IF NOT EXISTS ptr_error_at TIMESTAMPTZ;`);
+
+      await query(`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ptr TEXT;`);
 
       await query(`
         CREATE TABLE IF NOT EXISTS events (
@@ -80,6 +95,16 @@ export function ensureSchema(): Promise<void> {
         CREATE TABLE IF NOT EXISTS ipinfo_cache (
           ip TEXT PRIMARY KEY,
           data JSONB,
+          fetched_at TIMESTAMPTZ,
+          error TEXT,
+          error_at TIMESTAMPTZ
+        );
+      `);
+
+      await query(`
+        CREATE TABLE IF NOT EXISTS ptr_cache (
+          ip TEXT PRIMARY KEY,
+          ptr TEXT,
           fetched_at TIMESTAMPTZ,
           error TEXT,
           error_at TIMESTAMPTZ

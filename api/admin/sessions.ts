@@ -25,6 +25,7 @@ export default async function handler(req: any, res: any) {
         started_at,
         ended_at,
         ip,
+        ptr,
         is_bot,
         bot_score,
         bot_reasons,
@@ -45,20 +46,21 @@ export default async function handler(req: any, res: any) {
   );
 
   const sessions = rows.map((s: any) => {
-    const geo = s.geo ?? {};
-    const ipinfo = s.ipinfo ?? {};
+      const geo = s.geo ?? {};
+      const ipinfo = s.ipinfo ?? {};
 
-    return {
-      sid: s.sid,
-      vid: s.vid,
-      vid_short: typeof s.vid === 'string' ? s.vid.slice(0, 8) : '',
-      started_at: s.started_at,
-      ended_at: s.ended_at,
-      ip: s.ip,
-      is_bot: s.is_bot,
-      bot_score: s.bot_score,
-      bot_reasons: s.bot_reasons,
-      is_mobile: s.is_mobile,
+      return {
+        sid: s.sid,
+        vid: s.vid,
+        vid_short: typeof s.vid === 'string' ? s.vid.slice(0, 8) : '',
+        started_at: s.started_at,
+        ended_at: s.ended_at,
+        ip: s.ip,
+        ptr: s.ptr ?? null,
+        is_bot: s.is_bot,
+        bot_score: s.bot_score,
+        bot_reasons: s.bot_reasons,
+        is_mobile: s.is_mobile,
       orientation: s.orientation,
       active_seconds: s.active_seconds,
       interactions: s.interactions,

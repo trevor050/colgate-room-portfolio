@@ -11,6 +11,7 @@ import {
 import { getVercelGeo } from '../server/geo.js';
 import { computeBotScore } from '../server/bot.js';
 import { fetchAndCacheIpinfo, getIpinfoCached } from '../server/ipinfo.js';
+import { fetchAndCachePtr, getPtrCached } from '../server/ptr.js';
 
 type IncomingEvent = {
   type: string;
@@ -258,6 +259,45 @@ export default async function handler(req: any, res: any) {
             WHERE vid = $2 AND ipinfo IS NULL
           `,
           [ipinfoError, vid]
+        );
+      }
+    }
+
+    // PTR (reverse DNS) — cached; skip bots.
+    if (!bot.isBot && ip) {
+      const cached = await getPtrCached(ip);
+      let ptr = cached.ptr;
+      let ptrError = cached.error;
+
+      if (!ptr && !ptrError) {
+        const fetched = await fetchAndCachePtr(ip);
+        ptr = fetched.ptr;
+        ptrError = fetched.error;
+      }
+
+      if (ptr) {
+        await query(`UPDATE sessions SET ptr = $2 WHERE sid = $1`, [sid, ptr]);
+        await query(
+          `
+            UPDATE visitors SET
+              ptr = COALESCE(visitors.ptr, $2),
+              ptr_ip = COALESCE(visitors.ptr_ip, $1),
+              ptr_fetched_at = COALESCE(visitors.ptr_fetched_at, NOW()),
+              ptr_error = NULL,
+              ptr_error_at = NULL
+            WHERE vid = $3
+          `,
+          [ip, ptr, vid]
+        );
+      } else if (ptrError) {
+        await query(
+          `
+            UPDATE visitors SET
+              ptr_error = $1,
+              ptr_error_at = NOW()
+            WHERE vid = $2 AND ptr IS NULL
+          `,
+          [ptrError, vid]
         );
       }
     }
