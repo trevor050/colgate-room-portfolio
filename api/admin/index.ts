@@ -106,9 +106,9 @@ export default function handler(_req: any, res: any) {
           <div class="card">
 	            <div class="hd">
 	              <div class="controls">
-	                <button class="btn active" id="btnDashboard">Dashboard</button>
+	                <button class="btn" id="btnDashboard">Dashboard</button>
+	                <button class="btn active" id="btnVisitors">Visitors</button>
 	                <button class="btn" id="btnSessions">Sessions</button>
-	                <button class="btn" id="btnVisitors">Visitors</button>
 	                <button class="btn" id="btnBots">Bots</button>
 	                <button class="btn" id="btnMap">Map</button>
 	                <button class="btn" id="btnSettings">Settings</button>
@@ -139,7 +139,7 @@ export default function handler(_req: any, res: any) {
     <script>
       const $ = (id) => document.getElementById(id);
       const state = {
-          view:'dashboard',
+          view:'visitors',
           sessions:[],
           visitors:[],
           showBots:false,
@@ -352,7 +352,7 @@ export default function handler(_req: any, res: any) {
         const html=[
           '<table>',
           '<thead><tr>',
-          '<th>Cluster</th><th>Visitor</th><th>Sessions</th><th>Last seen</th><th>Last session</th><th>Identity</th><th>From</th><th>Last IP</th>',
+          '<th>Entity</th><th>Visitor</th><th>Sessions</th><th>Last seen</th><th>Last session</th><th>Ref</th><th>Identity</th><th>From</th><th>Last IP</th>',
           '</tr></thead>',
           '<tbody>',
           ...rows.map((v)=>{
@@ -361,13 +361,14 @@ export default function handler(_req: any, res: any) {
             const sel = (state.selectedVid===v.vid) ? ' sel' : '';
             return (
               '<tr class=\"visitorRow'+sel+'\" data-vid=\"'+v.vid+'\">'+
-                '<td><div class=\"mono\">'+(v.cluster_name||v.cluster_id||'')+'</div><div class=\"mono\">'+(v.cluster_id||'')+'</div></td>'+
+                '<td><div class=\"mono\">'+(v.cluster_name||'')+'</div><div class=\"mono\">'+(v.cluster_id||'')+'</div></td>'+
                 '<td>'+('<div class=\"mono\">'+(v.display_name||v.vid.slice(0,8))+'</div>')+
                   '<div class=\"mono\">'+v.vid.slice(0,8)+'</div>'+
                 '</td>'+
                 '<td>'+(v.sessions!=null?String(v.sessions):'—')+'</td>'+
                 '<td>'+fmtDate(v.last_seen_at)+'</td>'+
                 '<td>'+fmtDate(v.last_session_at)+'</td>'+
+                '<td>'+(v.last_ref_tag?('<div class=\"mono\">'+v.last_ref_tag+'</div>'):'<span class=\"mono\">(none)</span>')+'</td>'+
                 '<td>'+(who?('<div class=\"mono\">'+who+'</div>'):'<span class=\"mono\">(unknown)</span>')+'</td>'+
                 '<td>'+(loc?('<div class=\"mono\">'+loc+'</div>'):'<span class=\"mono\">(unknown)</span>')+'</td>'+
                 '<td class=\"mono\">'+(v.last_ip||'')+'</td>'+
@@ -749,15 +750,17 @@ export default function handler(_req: any, res: any) {
         const ident=v.org || v.ptr || v.last_ip || '';
         const cluster=data.cluster || null;
         const related=data.related || [];
+        const refs=data.refs || { tags: [], hosts: [] };
+        const stats=data.stats || {};
         const cookies=(cluster && Array.isArray(cluster.session_cookies)) ? cluster.session_cookies : [];
         const ips=(cluster && Array.isArray(cluster.ips)) ? cluster.ips : [];
         const fpids=(cluster && Array.isArray(cluster.fingerprints)) ? cluster.fingerprints : [];
         const humanSessions=sessions.filter((s)=>!s.is_bot);
         const botSessions=sessions.filter((s)=>s.is_bot);
-        const durations=humanSessions.map((s)=>Number(s.session_seconds)).filter((n)=>Number.isFinite(n) && n>0);
-        const avgDur=durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : null;
-        const avgActions=humanSessions.map((s)=>Number(s.interactions)).filter((n)=>Number.isFinite(n) && n>=0);
-        const avgAct=avgActions.length ? avgActions.reduce((a,b)=>a+b,0)/avgActions.length : null;
+        const durations=humanSessions.map((s)=>Number(s.session_seconds ?? s.active_seconds)).filter((n)=>Number.isFinite(n) && n>0);
+        const avgDur=Number.isFinite(stats.avg_session_seconds) ? stats.avg_session_seconds : (durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : null);
+        const avgAct=Number.isFinite(stats.avg_actions) ? stats.avg_actions : null;
+        const totalActions=Number.isFinite(stats.total_actions) ? stats.total_actions : null;
         const header=
           '<div class=\"row\" style=\"margin-bottom:10px\">'+
             '<span class=\"tag good\">visitor</span>'+
@@ -773,7 +776,7 @@ export default function handler(_req: any, res: any) {
           '</div>'+
           (cluster ? (
             '<div class=\"row\" style=\"margin-bottom:10px\">'+
-              '<span>Cluster: <span class=\"mono\">'+cluster.id+'</span></span>'+
+              '<span>Entity ID: <span class=\"mono\">'+cluster.id+'</span></span>'+
               '<span class=\"mono\">'+cluster.display_name+'</span>'+
             '</div>'
           ) : '')+
@@ -786,12 +789,19 @@ export default function handler(_req: any, res: any) {
           (ips.length ? (
             '<div class=\"row\" style=\"margin-bottom:10px\">Known IPs: <span class=\"mono\">'+ips.slice(0,6).join(', ')+'</span></div>'
           ) : '')+
+          ((refs.tags && refs.tags.length) ? (
+            '<div class=\"row\" style=\"margin-bottom:10px\">Ref tags: <span class=\"mono\">'+refs.tags.slice(0,6).join(', ')+'</span></div>'
+          ) : '')+
+          ((refs.hosts && refs.hosts.length) ? (
+            '<div class=\"row\" style=\"margin-bottom:10px\">Referrers: <span class=\"mono\">'+refs.hosts.slice(0,6).join(', ')+'</span></div>'
+          ) : '')+
           '<div class=\"kpis\">'+
             '<div class=\"kpi\"><div class=\"n\">'+String(sessions.length)+'</div><div class=\"l\">sessions</div></div>'+
-            '<div class=\"kpi\"><div class=\"n\">'+String(humanSessions.length)+'</div><div class=\"l\">human</div></div>'+
-            '<div class=\"kpi\"><div class=\"n\">'+String(botSessions.length)+'</div><div class=\"l\">bots</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(stats.sessions_human ?? humanSessions.length)+'</div><div class=\"l\">human</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+String(stats.sessions_bot ?? botSessions.length)+'</div><div class=\"l\">bots</div></div>'+
             '<div class=\"kpi\"><div class=\"n\">'+(avgDur==null?'—':fmtSec(avgDur))+'</div><div class=\"l\">avg time</div></div>'+
             '<div class=\"kpi\"><div class=\"n\">'+(avgAct==null?'—':String(Math.round(avgAct)))+'</div><div class=\"l\">avg actions</div></div>'+
+            '<div class=\"kpi\"><div class=\"n\">'+(totalActions==null?'—':String(Math.round(totalActions)))+'</div><div class=\"l\">total actions</div></div>'+
           '</div>'+
           '<div class=\"controls\" style=\"margin:10px 0\">'+
             '<input class=\"input\" id=\"dnInput\" value=\"'+(v.display_name||'').replace(/\"/g,'')+'\" placeholder=\"Display name\" />'+
@@ -825,6 +835,16 @@ export default function handler(_req: any, res: any) {
           '</tr>';
         }).join('');
 
+        const actionRows = (data.top_actions || []).slice(0, 20).map((a)=>{
+          const label = a.label || a.type || '';
+          return '<tr><td class=\"mono\">'+label+'</td><td>'+a.count+'</td></tr>';
+        }).join('');
+
+        const actionsHtml = actionRows
+          ? '<div class=\"row\" style=\"margin:12px 0 8px\">Top actions</div>'+
+            '<table><thead><tr><th>Action</th><th>Count</th></tr></thead><tbody>'+actionRows+'</tbody></table>'
+          : '';
+
         const relatedHtml = relatedRows
           ? '<div class=\"row\" style=\"margin:12px 0 8px\">Linked visitors</div>'+
             '<table><thead><tr><th>Visitor</th><th>Last seen</th><th>Identity</th><th>Last IP</th><th>Link</th></tr></thead><tbody>'+relatedRows+'</tbody></table>'
@@ -832,12 +852,12 @@ export default function handler(_req: any, res: any) {
 
         const clusterEditor = cluster
           ? '<div class=\"controls\" style=\"margin:10px 0\">'+
-              '<input class=\"input\" id=\"clusterInput\" value=\"'+(cluster.display_name||'').replace(/\"/g,'')+'\" placeholder=\"Cluster name\" />'+
-              '<button class=\"btn\" id=\"clusterSave\">Save cluster</button>'+
+              '<input class=\"input\" id=\"clusterInput\" value=\"'+(cluster.display_name||'').replace(/\"/g,'')+'\" placeholder=\"Entity name\" />'+
+              '<button class=\"btn\" id=\"clusterSave\">Save entity</button>'+
             '</div>'
           : '';
 
-        $('details').innerHTML=header+clusterEditor+relatedHtml+
+        $('details').innerHTML=header+clusterEditor+actionsHtml+relatedHtml+
           '<div class=\"row\" style=\"margin:12px 0 8px\">Recent sessions</div>'+
           (rows?('<table><thead><tr><th>When</th><th>Page</th><th>Device</th><th>Where</th><th>Summary</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div class=\"row\">No sessions.</div>');
 
@@ -928,10 +948,13 @@ export default function handler(_req: any, res: any) {
           if(get('overlay')) bits.push('section: '+get('overlay'));
           if(get('reason')) bits.push('reason: '+get('reason'));
           if(get('dwell_s')!=null) bits.push('dwell: '+get('dwell_s')+'s');
-          if(get('max_scroll_pct')!=null) bits.push('scroll: '+get('max_scroll_pct')+'%');
+          if(get('max_scroll_pct')!=null) bits.push('scroll: '+Math.round(get('max_scroll_pct'))+'%');
           if(get('max_scroll_speed_px_s')!=null) bits.push('speed: '+Math.round(get('max_scroll_speed_px_s'))+'px/s');
           return {t,h:'Close section',d:bits.join(' • ')};
         }
+        if(type==='focus' || type==='blur' || type==='visibility' || type==='idle_start' || type==='idle_end') return null;
+        if(type==='perf_nav' || type==='fingerprint_ready') return null;
+        if(type==='js_error' || type==='unhandledrejection') return null;
         return {t,h:type,d:e.data ? JSON.stringify(e.data) : ''};
       }
 
@@ -1070,8 +1093,9 @@ export default function handler(_req: any, res: any) {
 
         const timeline=events.slice(0,800).map((e)=>{
           const x=humanizeEvent(e);
+          if(!x) return '';
           return '<div class=\"evt\"><div class=\"t\">'+(x.t||'')+'</div><div><div class=\"h\">'+x.h+'</div><div class=\"d\">'+(x.d||'')+'</div></div></div>';
-        }).join('');
+        }).filter(Boolean).join('');
         const raw=events.slice(0,1200).map((e)=>{
           const t=fmtDate(e.ts);
           const data=e.data?JSON.stringify(e.data):'';
@@ -1205,8 +1229,8 @@ export default function handler(_req: any, res: any) {
             const mb = $('mapBots');
             if(mb) mb.checked = state.mapShowBots;
           }
-	        setView('dashboard');
-	        await loadOverview();
+	        setView('visitors');
+	        await loadVisitors();
 	      }
       $('continue').addEventListener('click', ()=>{ void doContinue(); });
       $('token').addEventListener('keydown', (e)=>{ if(e.key==='Enter') void doContinue(); });
@@ -1231,8 +1255,8 @@ export default function handler(_req: any, res: any) {
             const mb = $('mapBots');
             if(mb) mb.checked = state.mapShowBots;
           }
-	        setView('dashboard');
-	        await loadOverview();
+	        setView('visitors');
+	        await loadVisitors();
 	      })();
     </script>
   </body>

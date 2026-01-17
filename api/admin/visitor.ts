@@ -2,7 +2,7 @@ import { requireAdmin } from '../../server/admin.js';
 import { ensureSchema } from '../../server/schema.js';
 import { query, getPool } from '../../server/db.js';
 import { makeDisplayName } from '../../server/names.js';
-import { readRawBody } from '../../server/http.js';
+import { readRawBody, safeHostFromUrl } from '../../server/http.js';
 import { createHash } from 'node:crypto';
 
 function clampString(value: unknown, max = 200): string | null {
@@ -119,9 +119,11 @@ export default async function handler(req: any, res: any) {
         orientation,
         page,
         referrer,
+        ref_tag,
         geo,
         ipinfo,
         session_cookie_id,
+        fingerprint_id,
         active_seconds,
         idle_seconds,
         session_seconds,
@@ -166,6 +168,7 @@ export default async function handler(req: any, res: any) {
       orientation: s.orientation,
       page: s.page ?? null,
       referrer: s.referrer ?? null,
+      ref_tag: s.ref_tag ?? null,
       city: geo.city ?? null,
       region: geo.region ?? null,
       country: geo.country ?? null,
@@ -173,6 +176,7 @@ export default async function handler(req: any, res: any) {
       longitude: geo.longitude ?? null,
       org: ipinfoS.org ?? ipinfoS.company?.name ?? null,
       session_cookie_id: s.session_cookie_id ?? null,
+      fingerprint_id: s.fingerprint_id ?? null,
       active_seconds: s.active_seconds,
       idle_seconds: s.idle_seconds,
       session_seconds: s.session_seconds,
@@ -202,6 +206,30 @@ export default async function handler(req: any, res: any) {
     [vid]
   );
   const fpids = fpidRes.rows.map((r: any) => r.fingerprint_id).filter(Boolean);
+
+  const refTagRes = await query<any>(
+    `
+      SELECT DISTINCT ref_tag
+      FROM sessions
+      WHERE vid = $1 AND ref_tag IS NOT NULL AND ref_tag <> ''
+      LIMIT 30
+    `,
+    [vid]
+  );
+  const refTags = refTagRes.rows.map((r: any) => r.ref_tag).filter(Boolean);
+
+  const refHostRes = await query<any>(
+    `
+      SELECT DISTINCT referrer
+      FROM sessions
+      WHERE vid = $1 AND referrer IS NOT NULL AND referrer <> ''
+      LIMIT 30
+    `,
+    [vid]
+  );
+  const refHosts = refHostRes.rows
+    .map((r: any) => safeHostFromUrl(r.referrer ?? undefined) ?? r.referrer)
+    .filter(Boolean);
 
   const ipRes = await query<any>(
     `
@@ -277,6 +305,54 @@ export default async function handler(req: any, res: any) {
     };
   });
 
+  const statsRes = await query<any>(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE COALESCE(is_bot,false)=false) AS sessions_human,
+        COUNT(*) FILTER (WHERE COALESCE(is_bot,false)=true) AS sessions_bot,
+        AVG(
+          CASE
+            WHEN COALESCE(is_bot,false)=false THEN
+              COALESCE(session_seconds, EXTRACT(EPOCH FROM (ended_at - started_at)))
+            ELSE NULL
+          END
+        )::float AS avg_session_seconds,
+        AVG(
+          CASE
+            WHEN COALESCE(is_bot,false)=false THEN COALESCE(interactions,0)
+            ELSE NULL
+          END
+        )::float AS avg_actions,
+        SUM(
+          CASE
+            WHEN COALESCE(is_bot,false)=false THEN COALESCE(interactions,0)
+            ELSE 0
+          END
+        )::int AS total_actions
+      FROM sessions
+      WHERE vid = $1
+    `,
+    [vid]
+  );
+  const stats = statsRes.rows[0] ?? {};
+
+  const actionRes = await query<any>(
+    `
+      SELECT
+        e.type,
+        COALESCE(e.data->>'target', e.data->>'overlay', e.data->>'path', e.type) AS label,
+        COUNT(*)::int AS count
+      FROM events e
+      JOIN sessions s ON s.sid = e.sid
+      WHERE s.vid = $1
+        AND e.type IN ('click_target','click_link','open_overlay','close_overlay')
+      GROUP BY e.type, label
+      ORDER BY count DESC
+      LIMIT 40
+    `,
+    [vid]
+  );
+
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
   res.end(
@@ -284,6 +360,15 @@ export default async function handler(req: any, res: any) {
       visitor,
       sessions,
       cluster: { id: groupId, display_name: groupName, session_cookies: scids, ips, fingerprints: fpids },
+      refs: { tags: refTags, hosts: refHosts },
+      stats: {
+        sessions_human: Number(stats.sessions_human ?? 0),
+        sessions_bot: Number(stats.sessions_bot ?? 0),
+        avg_session_seconds: stats.avg_session_seconds ?? null,
+        avg_actions: stats.avg_actions ?? null,
+        total_actions: Number(stats.total_actions ?? 0),
+      },
+      top_actions: actionRes.rows,
       related,
     })
   );

@@ -297,6 +297,14 @@ export function createTelemetryClient(options: TelemetryClientOptions = {}) {
         try {
           const target = e.target as Element | null;
           if (!target) return;
+          const tracked = target.closest?.('[data-track]') as HTMLElement | null;
+          if (tracked) {
+            const label = clampString(tracked.getAttribute('data-track'), 120);
+            if (label) {
+              const group = clampString(tracked.getAttribute('data-track-group'), 80);
+              track('click_target', { target: label, group: group ?? undefined });
+            }
+          }
           const a = target.closest?.('a') as HTMLAnchorElement | null;
           if (!a) return;
           const href = clampString(a.href, 800);
