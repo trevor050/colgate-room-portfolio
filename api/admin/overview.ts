@@ -25,6 +25,8 @@ export default async function handler(req: any, res: any) {
   const d1 = daysAgo(1).toISOString();
   const d7 = daysAgo(7).toISOString();
   const d30 = daysAgo(30).toISOString();
+  const d60 = daysAgo(60).toISOString();
+  const d365 = daysAgo(365).toISOString();
 
   const totalsRes = await query<any>(
     `
@@ -132,10 +134,35 @@ export default async function handler(req: any, res: any) {
       WHERE started_at >= $1 AND COALESCE(is_bot,false)=false
       GROUP BY day
       ORDER BY day ASC
-      LIMIT 60
+      LIMIT 365
+    `,
+    [d365]
+  );
+
+  const currRes = await query<any>(
+    `
+      SELECT
+        COUNT(*)::int AS sessions,
+        COUNT(DISTINCT vid)::int AS visitors
+      FROM sessions
+      WHERE started_at >= $1 AND COALESCE(is_bot,false)=false
     `,
     [d30]
   );
+  const prevRes = await query<any>(
+    `
+      SELECT
+        COUNT(*)::int AS sessions,
+        COUNT(DISTINCT vid)::int AS visitors
+      FROM sessions
+      WHERE started_at >= $1 AND started_at < $2 AND COALESCE(is_bot,false)=false
+    `,
+    [d60, d30]
+  );
+
+  const curr = currRes.rows[0] ?? { sessions: 0, visitors: 0 };
+  const prev = prevRes.rows[0] ?? { sessions: 0, visitors: 0 };
+  const pct = (c: number, p: number) => (p > 0 ? Math.round(((c - p) / p) * 1000) / 10 : null);
 
   res.statusCode = 200;
   res.setHeader('content-type', 'application/json');
@@ -151,8 +178,15 @@ export default async function handler(req: any, res: any) {
       top_pages_30d: pagesRes.rows,
       top_overlays_open_30d: overlaysRes.rows,
       top_overlays_dwell_30d: overlayDwellRes.rows,
-      by_day_30d: byDayRes.rows,
+      by_day_365d: byDayRes.rows,
+      period_30d: {
+        sessions: curr.sessions ?? 0,
+        visitors: curr.visitors ?? 0,
+        sessions_prev: prev.sessions ?? 0,
+        visitors_prev: prev.visitors ?? 0,
+        sessions_change_pct: pct(curr.sessions ?? 0, prev.sessions ?? 0),
+        visitors_change_pct: pct(curr.visitors ?? 0, prev.visitors ?? 0),
+      },
     })
   );
 }
-

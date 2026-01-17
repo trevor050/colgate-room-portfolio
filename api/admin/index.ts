@@ -38,7 +38,7 @@ export default function handler(_req: any, res: any) {
       .bd{padding:14px 16px}
       .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
       .btn{border:1px solid var(--border);background:rgba(0,0,0,.2);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
-      .btn.icon{padding:8px 10px;min-width:40px}
+      .btn.icon{padding:8px 12px;min-width:46px;font-size:14px}
       .btn.active{border-color:rgba(255,215,0,.35);box-shadow:0 0 0 3px rgba(255,215,0,.12)}
       .input{border:1px solid var(--border);background:rgba(0,0,0,.2);color:var(--text);padding:8px 10px;border-radius:10px;min-width:240px}
       .row{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:13px}
@@ -94,7 +94,6 @@ export default function handler(_req: any, res: any) {
 	        <header>
 	          <div>
 	            <h1>Analytics</h1>
-	            <div class="row">First-party tracker dashboard</div>
 	          </div>
 	          <div class="controls">
 	            <button class="btn" id="logout">Logout</button>
@@ -273,9 +272,6 @@ export default function handler(_req: any, res: any) {
                 '<span class=\"mono\">'+(s.ip||'')+'</span>'+
                 (s.ptr?('<span class=\"mono\">'+s.ptr+'</span>'):'')+
               '</div>'+
-              '<div class=\"controls\" style=\"gap:8px\">'+
-                '<button class=\"btn\" data-open-session=\"'+sid+'\">Open timeline</button>'+
-              '</div>'+
             '</div>'+
             '<div class=\"row\" style=\"margin-top:8px\">'+(bits.join(' • ')||'<span class=\"mono\">(no summary yet)</span>')+'</div>'+
             '<div class=\"row\" style=\"margin-top:6px\">'+lastLine+'</div>'
@@ -339,14 +335,6 @@ export default function handler(_req: any, res: any) {
             render();
             void loadSessionLite(sid);
             await loadSession(sid);
-          });
-        });
-        $('list').querySelectorAll('button[data-open-session]').forEach((btn)=>{
-          btn.addEventListener('click', async (e)=>{
-            e.preventDefault();
-            e.stopPropagation();
-            const sid = btn.getAttribute('data-open-session');
-            if(sid) await loadSession(sid);
           });
         });
       }
@@ -433,17 +421,45 @@ export default function handler(_req: any, res: any) {
           ['Returning (30d)', String(o.returning_visitors_30d||0)],
         ].map(([l,n])=>'<div class=\"kpi\"><div class=\"n\">'+n+'</div><div class=\"l\">'+l+'</div></div>').join('');
 
-        const byDaySessions=(o.by_day_30d||[]).map((r,i)=>({x:i,y:Number(r.sessions||0)}));
-        const byDayVisitors=(o.by_day_30d||[]).map((r,i)=>({x:i,y:Number(r.visitors||0)}));
+        const byDaySessions=(o.by_day_365d||[]).map((r,i)=>({x:i,y:Number(r.sessions||0)}));
+        const byDayVisitors=(o.by_day_365d||[]).map((r,i)=>({x:i,y:Number(r.visitors||0)}));
         const chart=byDaySessions.length>=2 ? sparkline2(byDaySessions, byDayVisitors) : '';
+        const period=o.period_30d||{};
+        const changeTag=(pct)=>{
+          if(pct==null) return '<span class=\"tag\">new</span>';
+          const cls=pct>=0?'good':'bad';
+          const sign=pct>=0?'+':'';
+          return '<span class=\"tag '+cls+'\">'+sign+pct+'%</span>';
+        };
+
+        const dauChart = byDayVisitors.length>=2 ? sparkline(byDayVisitors) : '';
+        const sessionChart = byDaySessions.length>=2 ? sparkline(byDaySessions) : '';
 
         $('list').innerHTML=
-          '<div class=\"row\" style=\"margin-bottom:8px\">Last 30 days</div>'+
+          '<div class=\"row\" style=\"margin-bottom:8px\">Last 12 months</div>'+
           '<div class=\"kpis\">'+kpis+'</div>'+
           (chart?(
             '<div style=\"margin-top:10px\">'+chart+'</div>'+
             '<div class=\"row\" style=\"margin-top:6px\"><span class=\"tag\" style=\"border-color:rgba(255,215,0,.35)\">sessions</span><span class=\"tag\" style=\"border-color:rgba(138,180,248,.35)\">visitors</span></div>'
-          ):'');
+          ):'')+
+          '<div class=\"split\" style=\"margin-top:12px\">'+
+            '<div class=\"card\" style=\"border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18)\">'+
+              '<div class=\"bd\"><div class=\"row\" style=\"margin-bottom:6px\">Active users (daily)</div>'+(dauChart||'<div class=\"row\">Not enough data yet.</div>')+'</div>'+
+            '</div>'+
+            '<div class=\"card\" style=\"border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18)\">'+
+              '<div class=\"bd\"><div class=\"row\" style=\"margin-bottom:6px\">Daily sessions</div>'+(sessionChart||'<div class=\"row\">Not enough data yet.</div>')+'</div>'+
+            '</div>'+
+          '</div>'+
+          '<div class=\"split\" style=\"margin-top:12px\">'+
+            '<div class=\"card\" style=\"border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18)\">'+
+              '<div class=\"bd\"><div class=\"row\" style=\"margin-bottom:6px\">Sessions (last 30d vs prior)</div>'+
+                '<div class=\"row\"><span class=\"mono\">'+(period.sessions||0)+'</span>'+changeTag(period.sessions_change_pct)+'</div></div>'+
+            '</div>'+
+            '<div class=\"card\" style=\"border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18)\">'+
+              '<div class=\"bd\"><div class=\"row\" style=\"margin-bottom:6px\">Visitors (last 30d vs prior)</div>'+
+                '<div class=\"row\"><span class=\"mono\">'+(period.visitors||0)+'</span>'+changeTag(period.visitors_change_pct)+'</div></div>'+
+            '</div>'+
+          '</div>';
 
         const ref=(o.top_referrers_30d||[]).slice(0,10).map(r=>'<tr><td class=\"mono\">'+(r.host||'')+'</td><td>'+r.sessions+'</td></tr>').join('');
         const pages=(o.top_pages_30d||[]).slice(0,10).map(r=>'<tr><td class=\"mono\">'+(r.page||'')+'</td><td>'+r.sessions+'</td></tr>').join('');
@@ -603,20 +619,18 @@ export default function handler(_req: any, res: any) {
         }
 
         const s=state.settings;
+        const toMonths=(days)=> Math.max(1, Math.round(Number(days||30) / 30));
         $('list').innerHTML=
           '<div class=\"row\" style=\"margin-bottom:8px\">Settings</div>'+
           '<div class=\"pre\">'+
             'Retention\\n'+
-            '  Humans: keep sessions for '+s.retention_human_days+' days\\n'+
-            '  Bots: keep sessions for '+s.retention_bot_days+' days\\n\\n'+
-            'Map\\n'+
-            '  Include bots by default: '+(s.map_include_bots_default?'yes':'no')+'\\n'+
+            '  Humans: keep sessions for '+toMonths(s.retention_human_days)+' months\\n'+
+            '  Bots: keep sessions for '+toMonths(s.retention_bot_days)+' months\\n\\n'+
           '</div>'+
           '<div class=\"row\" style=\"margin-top:12px\">Edit</div>'+
           '<div class=\"controls\" style=\"margin-top:10px\">'+
-            '<label class=\"tag\">Humans (days) <input class=\"input\" style=\"min-width:120px\" id=\"retHuman\" type=\"number\" min=\"1\" max=\"3650\" value=\"'+s.retention_human_days+'\" /></label>'+
-            '<label class=\"tag\">Bots (days) <input class=\"input\" style=\"min-width:120px\" id=\"retBot\" type=\"number\" min=\"1\" max=\"365\" value=\"'+s.retention_bot_days+'\" /></label>'+
-            '<label class=\"tag\"><input id=\"mapDefaultBots\" type=\"checkbox\" '+(s.map_include_bots_default?'checked':'')+' /> map includes bots</label>'+
+            '<label class=\"tag\">Humans (months) <input class=\"input\" style=\"min-width:120px\" id=\"retHuman\" type=\"number\" min=\"1\" max=\"60\" value=\"'+toMonths(s.retention_human_days)+'\" /></label>'+
+            '<label class=\"tag\">Bots (months) <input class=\"input\" style=\"min-width:120px\" id=\"retBot\" type=\"number\" min=\"1\" max=\"12\" value=\"'+toMonths(s.retention_bot_days)+'\" /></label>'+
             '<button class=\"btn\" id=\"saveSettings\">Save</button>'+
           '</div>'+
           '<div class=\"row\" id=\"settingsMsg\" style=\"margin-top:10px\"></div>'+
@@ -639,9 +653,8 @@ export default function handler(_req: any, res: any) {
           saveBtn.addEventListener('click', async ()=>{
             const token=getToken();
             const patch={
-              retention_human_days: Number(($('retHuman') && $('retHuman').value) ? $('retHuman').value : s.retention_human_days),
-              retention_bot_days: Number(($('retBot') && $('retBot').value) ? $('retBot').value : s.retention_bot_days),
-              map_include_bots_default: Boolean($('mapDefaultBots') && $('mapDefaultBots').checked),
+              retention_human_days: Math.max(1, Number(($('retHuman') && $('retHuman').value) ? $('retHuman').value : toMonths(s.retention_human_days)) * 30),
+              retention_bot_days: Math.max(1, Number(($('retBot') && $('retBot').value) ? $('retBot').value : toMonths(s.retention_bot_days)) * 30),
             };
             try{
               if(msgEl){ msgEl.textContent='Saving…'; msgEl.style.color='var(--muted)'; }
@@ -657,8 +670,6 @@ export default function handler(_req: any, res: any) {
               if(!r.ok) throw new Error(await r.text());
               const out=await r.json();
               state.settings=out.settings||patch;
-              state.mapShowBots = Boolean(state.settings.map_include_bots_default);
-              const mb=$('mapBots'); if(mb) mb.checked=state.mapShowBots;
               if(msgEl){ msgEl.textContent='Saved.'; msgEl.style.color='var(--green)'; }
               render();
             }catch(err){
@@ -998,25 +1009,25 @@ export default function handler(_req: any, res: any) {
 	        render();
 	      }
 
-	      $('btnDashboard').addEventListener('click', async ()=>{
+	      $('btnDashboard').addEventListener('click', ()=>{
 	        setView('dashboard');
-	        await loadOverview();
+	        void loadOverview();
 	      });
-	      $('btnSessions').addEventListener('click', async ()=>{
+	      $('btnSessions').addEventListener('click', ()=>{
 	        setView('sessions');
-	        await loadSessions();
+	        void loadSessions();
 	      });
-	      $('btnVisitors').addEventListener('click', async ()=>{
+	      $('btnVisitors').addEventListener('click', ()=>{
 	        setView('visitors');
-	        await loadVisitors();
+	        void loadVisitors();
 	      });
-	      $('btnBots').addEventListener('click', async ()=>{
+	      $('btnBots').addEventListener('click', ()=>{
 	        setView('bots');
-	        await loadBots();
+	        void loadBots();
 	      });
-	      $('btnMap').addEventListener('click', async ()=>{
+	      $('btnMap').addEventListener('click', ()=>{
 	        setView('map');
-	        await loadMap();
+	        void loadMap();
 	      });
 	      $('btnSettings').addEventListener('click', ()=>{
 	        setView('settings');
@@ -1053,8 +1064,9 @@ export default function handler(_req: any, res: any) {
           if(refreshTimer) clearInterval(refreshTimer);
           refreshTimer=setInterval(()=>{
             if(document.hidden) return;
+            if(state.view==='map') return;
             void refreshCurrent();
-          }, 15000);
+          }, 25000);
         }
 
 	      async function doContinue(){
