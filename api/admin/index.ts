@@ -329,7 +329,7 @@ export default function handler(_req: any, res: any) {
         ].join('');
         $('list').innerHTML=html;
         $('list').querySelectorAll('tr.sessionRow[data-sid]').forEach((tr)=>{
-          tr.addEventListener('click', async ()=>{
+          tr.addEventListener('click', ()=>{
             const sid=tr.getAttribute('data-sid');
             if(!sid) return;
             if(state.expandedSid===sid){
@@ -341,7 +341,7 @@ export default function handler(_req: any, res: any) {
             state.selectedSid=sid;
             render();
             void loadSessionLite(sid);
-            await loadSession(sid);
+            setTimeout(()=>{ void loadSession(sid); }, 0);
           });
         });
       }
@@ -841,8 +841,8 @@ export default function handler(_req: any, res: any) {
         }).join('');
 
         const actionsHtml = actionRows
-          ? '<div class=\"row\" style=\"margin:12px 0 8px\">Top actions</div>'+
-            '<table><thead><tr><th>Action</th><th>Count</th></tr></thead><tbody>'+actionRows+'</tbody></table>'
+          ? '<details style=\"margin-top:12px\"><summary class=\"row\">Top actions</summary>'+
+            '<table><thead><tr><th>Action</th><th>Count</th></tr></thead><tbody>'+actionRows+'</tbody></table></details>'
           : '';
 
         const relatedHtml = relatedRows
@@ -857,9 +857,12 @@ export default function handler(_req: any, res: any) {
             '</div>'
           : '';
 
-        $('details').innerHTML=header+clusterEditor+actionsHtml+relatedHtml+
+        $('details').innerHTML=header+clusterEditor+relatedHtml+
           '<div class=\"row\" style=\"margin:12px 0 8px\">Recent sessions</div>'+
           (rows?('<table><thead><tr><th>When</th><th>Page</th><th>Device</th><th>Where</th><th>Summary</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'):'<div class=\"row\">No sessions.</div>');
+        if(actionsHtml){
+          $('details').insertAdjacentHTML('beforeend', actionsHtml);
+        }
 
         const saveBtn=$('dnSave');
         if(saveBtn){
@@ -912,9 +915,10 @@ export default function handler(_req: any, res: any) {
           });
         });
         $('details').querySelectorAll('tr[data-sid]').forEach((tr)=>{
-          tr.addEventListener('click', async ()=>{
+          tr.addEventListener('click', ()=>{
             const sid=tr.getAttribute('data-sid');
-            if(sid) await loadSession(sid);
+            if(!sid) return;
+            setTimeout(()=>{ void loadSession(sid); }, 0);
           });
         });
       }
@@ -1001,23 +1005,23 @@ export default function handler(_req: any, res: any) {
           (s.ptr?('<span>PTR: <span class=\"mono\">'+s.ptr+'</span></span>'):'')+
           (s.ip?('<span>IP: <span class=\"mono\">'+s.ip+'</span></span>'):'')+
         '</div>');
-        headerBits.push('<div class=\"row\" style=\"margin-bottom:10px\">'+
-          (s.session_cookie_id?('<span>Session cookie: <span class=\"mono\">'+s.session_cookie_id+'</span></span>'):'')+
-          (s.fingerprint_id?('<span>Fingerprint: <span class=\"mono\">'+s.fingerprint_id+'</span></span>'):'')+
-          (s.ref_tag?('<span>Ref: <span class=\"mono\">'+s.ref_tag+'</span></span>'):'')+
-        '</div>');
-        if (s.session_cookie_id) {
-          headerBits.push('<div class=\"row\" style=\"margin-bottom:10px\">'+
-            '<span>Session cookie: <span class=\"mono\">'+s.session_cookie_id+'</span></span>'+
-          '</div>');
+        const identLines=[];
+        if(s.session_cookie_id) identLines.push('<div>Session cookie: <span class=\"mono\">'+s.session_cookie_id+'</span></div>');
+        if(s.fingerprint_id) identLines.push('<div>Fingerprint: <span class=\"mono\">'+s.fingerprint_id+'</span></div>');
+        if(s.ref_tag) identLines.push('<div>Ref: <span class=\"mono\">'+s.ref_tag+'</span></div>');
+        if(identLines.length){
+          headerBits.push('<div class=\"pre\">'+identLines.join('\\n')+'</div>');
         }
 
         const kpis=[];
-        kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.active_seconds)+'</div><div class=\"l\">active time</div></div>');
+        const activeSeconds = s.active_seconds ?? (Number.isFinite(s.session_seconds) ? s.session_seconds : null);
+        const totalSeconds = s.session_seconds ?? (Number.isFinite(s.active_seconds) ? s.active_seconds : null);
+        const actions = Number.isFinite(s.interactions) ? s.interactions : null;
+        kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(activeSeconds)+'</div><div class=\"l\">active time</div></div>');
         if (s.idle_seconds != null) kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.idle_seconds)+'</div><div class=\"l\">idle time</div></div>');
-        if (s.session_seconds != null) kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(s.session_seconds)+'</div><div class=\"l\">total time</div></div>');
-        kpis.push('<div class=\"kpi\"><div class=\"n\">'+(s.interactions!=null?s.interactions:'—')+'</div><div class=\"l\">actions</div></div>');
-        kpis.push('<div class=\"kpi\"><div class=\"n\">'+(Array.isArray(s.overlays)?s.overlays.length:0)+'</div><div class=\"l\">sections visited</div></div>');
+        kpis.push('<div class=\"kpi\"><div class=\"n\">'+fmtSec(totalSeconds)+'</div><div class=\"l\">total time</div></div>');
+        kpis.push('<div class=\"kpi\"><div class=\"n\">'+(actions==null?'—':String(actions))+'</div><div class=\"l\">actions</div></div>');
+        kpis.push('<div class=\"kpi\"><div class=\"n\">'+(s.overlays_unique ?? (Array.isArray(s.overlays)?s.overlays.length: '—'))+'</div><div class=\"l\">sections visited</div></div>');
         kpis.push('<div class=\"kpi\"><div class=\"n\">'+(s.is_mobile?'mobile':'desktop')+'</div><div class=\"l\">device</div></div>');
 
 	        const header=headerBits.join('')+'<div class=\"kpis\">'+kpis.join('')+'</div>';
