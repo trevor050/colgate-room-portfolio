@@ -1,19 +1,20 @@
-# Portfolio Tracker (internal analytics)
+# Dossier
 
-This repo contains a small, first‑party analytics system intended for low‑traffic, high‑signal sites (e.g. “send to a few recruiters and understand what they looked at”).
+First‑party analytics for low‑traffic, high‑signal sites (e.g. “share with a few recruiters and see what they looked at”).
 
 ## What it does
 
 - Captures client events (clicks/hover/sections/scroll + basic device context)
 - Captures session timing (total, active, idle)
-- Enriches non-bot sessions with IPinfo (cached) and PTR reverse DNS (cached)
+- Enriches non‑bot sessions with IPinfo (cached) and PTR reverse DNS (cached)
 - Stores everything in Postgres
 - Serves a token‑protected admin dashboard at `/api/admin`
 
-## Files that make up the tracker
+## Project layout
 
 **Client**
 
+- `src/tracking/config.ts` — Vite client config helper
 - `src/tracking/telemetry.ts` — event queue + batching + global listeners
 
 **Ingest + admin API (Vercel Functions)**
@@ -37,6 +38,12 @@ This repo contains a small, first‑party analytics system intended for low‑tr
 - `server/ptr.ts` — PTR caching + reverse DNS
 - `server/admin.ts` — `ADMIN_TOKEN` auth helper
 
+## Quick start (Vercel)
+
+1. Deploy this folder as its own project (or copy `api/`, `server/`, `src/tracking/` into your app).
+2. Set the required env vars (see below).
+3. In your client app, initialize the telemetry client and point it at `/api/collect`.
+
 ## Environment variables
 
 **Required**
@@ -55,9 +62,35 @@ This repo contains a small, first‑party analytics system intended for low‑tr
 - `VITE_TRACKER_ENDPOINT` (default: `/api/collect`)
 - `VITE_TRACKER_PERSIST` (`localStorage` or `cookie`, default: `localStorage`)
 
-## Open-source spin-out checklist
+## Discord visit reports (optional)
 
-- Move the files above into a new repo (keep paths consistent or update imports)
-- Provide a minimal demo UI (or keep the current `/api/admin` page)
-- Add a migration strategy (current `ensureSchema()` uses idempotent `CREATE TABLE` + `ALTER TABLE ADD COLUMN IF NOT EXISTS`)
-- Add a license, contributing guide, and security note for admin token handling
+Serverless endpoint `api/report.ts` can send a Discord message on `visit` and `session_end`.
+
+- Set `DISCORD_WEBHOOK_URL` in Vercel → Project → Settings → Environment Variables
+- (Optional) Set `DISCORD_BOT_WEBHOOK_URL` for suspected bot traffic
+- (Optional) Set `REPORT_ALLOWED_HOSTS` to your domains to reduce spam
+
+## Minimal client example
+
+```ts
+import { getTrackerConfig } from './tracking/config';
+import { createTelemetryClient } from './tracking/telemetry';
+
+const trackerConfig = getTrackerConfig();
+const telemetry = createTelemetryClient({
+  endpoint: trackerConfig.endpoint,
+  persistVisitorId: trackerConfig.persist,
+});
+
+telemetry.installGlobalTracking();
+telemetry.ensureVisit();
+
+window.addEventListener('pagehide', () => {
+  void telemetry.flush({ useBeacon: true });
+});
+```
+
+## Admin dashboard
+
+- Visit `/api/admin`
+- The admin token is stored in `localStorage` + a cookie scoped to `/api/admin`

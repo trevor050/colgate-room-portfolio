@@ -2,7 +2,7 @@ import { Pool, type QueryResult, type QueryResultRow } from 'pg';
 
 declare global {
   // eslint-disable-next-line no-var
-  var __portfolioPool: Pool | undefined;
+  var __dossierPool: Pool | undefined;
 }
 
 function getDatabaseUrl(): string | undefined {
@@ -19,15 +19,15 @@ export function getPool(): Pool | null {
   const connectionString = getDatabaseUrl();
   if (!connectionString) return null;
 
-  if (!global.__portfolioPool) {
-    global.__portfolioPool = new Pool({
+  if (!global.__dossierPool) {
+    global.__dossierPool = new Pool({
       connectionString,
       ssl: connectionString.includes('sslmode=require') ? { rejectUnauthorized: false } : undefined,
       max: 5,
     });
   }
 
-  return global.__portfolioPool;
+  return global.__dossierPool;
 }
 
 export async function query<T extends QueryResultRow = any>(

@@ -20,27 +20,12 @@ All portfolio text/content lives in `src/content.ts`.
 
 ## Analytics
 
-This project supports both third‑party analytics (optional) and a first‑party “internal” tracker.
+This project supports optional third‑party analytics. The first‑party tracker has been extracted to `dossier/README.md`.
 
-### First-party analytics (recommended)
+### Dossier tracker (optional)
 
-First‑party analytics is collected by Vercel Functions and stored in Postgres:
-
-- Ingest: `POST /api/collect`
-- Admin dashboard: `/api/admin` (stores your token in `localStorage`)
-
-**Setup (Vercel)**
-
-- Set a Postgres connection string via `DATABASE_URL` (preferred) or Vercel’s `POSTGRES_URL*` env vars.
-- Set `ADMIN_TOKEN` (long random string).
-- Optional: set `IPINFO_TOKEN` to enrich non‑bot IPs (cached; skipped for bots).
-- Optional: set `REPORT_ALLOWED_HOSTS` to restrict `Origin`/`Referer` hosts.
-
-**Usage**
-
-- Exclude your own device: visit `/?internal=1` once (to re-enable: `/?internal=0`).
-- Bots are hidden by default in the dashboard; add `?bots=1` to include them.
-- Tracker code map: `tracker/README.md`
+- Client wiring lives in `src/main.ts` and reads `VITE_TRACKER_ENDPOINT`.
+- For a separate Dossier deployment, set `VITE_TRACKER_ENDPOINT` to the Dossier `/api/collect` URL.
 
 ### Third-party analytics (optional)
 
@@ -53,11 +38,3 @@ PostHog is proxied through `/_i/*` to reduce third‑party blocking:
 
 - Dev: proxied via `vite.config.ts`
 - Prod: proxied via `vercel.json`
-
-### Discord visit reports (optional)
-
-Serverless endpoint `api/report.ts` can send a Discord message on `visit` and `session_end`.
-
-- Set `DISCORD_WEBHOOK_URL` in Vercel → Project → Settings → Environment Variables
-- (Optional) Set `DISCORD_BOT_WEBHOOK_URL` for suspected bot traffic
-- (Optional) Set `REPORT_ALLOWED_HOSTS` to your domains to reduce spam

@@ -3,8 +3,8 @@ import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEven
 import { GlowFilter } from 'pixi-filters';
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
-import { getTrackerConfig } from './tracking/config';
-import { createTelemetryClient } from './tracking/telemetry';
+import { getTrackerConfig } from '../dossier/src/tracking/config';
+import { createTelemetryClient } from '../dossier/src/tracking/telemetry';
 import { content } from './content';
 
 if (import.meta.env.PROD) {
@@ -277,7 +277,6 @@ function setupClientAnalytics() {
     screen_w: window.screen?.width ?? null,
     screen_h: window.screen?.height ?? null,
   });
-
   const onChange = () => evaluate('viewport_change');
   try {
     isMobileMq.addEventListener('change', onChange);
@@ -297,6 +296,8 @@ function setupClientAnalytics() {
       captureAnalytics('session_summary', {
         interactions: interactionCount,
         active_seconds: Math.round((performance.now() - sessionStartMs) / 1000),
+        first_interaction_seconds:
+          firstInteractionAtMs == null ? null : Math.round((firstInteractionAtMs - sessionStartMs) / 1000),
       });
 
       const overlays = Array.from(overlaySummary.entries())
@@ -1198,7 +1199,6 @@ function setupOverlay() {
         max_scroll_pct: scroll ? Math.round(scroll.maxPct * 1000) / 1000 : 0,
         total_scroll_px: scroll ? Math.round(scroll.totalPx) : 0,
       });
-
       telemetry.track('close_overlay', {
         overlay: overlayKey,
         reason,
