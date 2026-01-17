@@ -107,29 +107,42 @@ function formatDiscordMessage(payload: any, req: any) {
   const sid = typeof payload?.sid === 'string' ? payload.sid : undefined;
   const vid = typeof payload?.vid === 'string' ? payload.vid : undefined;
   const overlays = Array.isArray(payload?.overlays) ? payload.overlays : undefined;
+  const firstInteractionSeconds =
+    typeof payload?.first_interaction_seconds === 'number' ? payload.first_interaction_seconds : null;
+  const overlaysUnique = typeof payload?.overlays_unique === 'number' ? payload.overlays_unique : undefined;
+
+  const visitorShort = vid ? vid.split('-')[0] ?? vid.slice(0, 8) : undefined;
+  const sessionShort = sid ? sid.split('-')[0] ?? sid.slice(0, 8) : undefined;
+
+  const device = typeof isMobile === 'boolean' ? (isMobile ? 'Mobile' : 'Desktop') : 'Unknown';
+  const langShort = acceptLang ? acceptLang.split(',')[0]?.trim() : undefined;
+  const refHost = safeHostFromUrl(referrer);
+
+  const title = event === 'session_end' ? 'Session end' : 'Visit';
+
+  const descriptionLines: string[] = [];
+  if (ip) descriptionLines.push(`**IP:** \`${ip}\``);
+  descriptionLines.push(`**Loc:** ${location}`);
+  if (geo.timezone) descriptionLines.push(`**TZ:** ${geo.timezone}`);
+  if (geo.asn || geo.asName) descriptionLines.push(`**Net:** ${[geo.asn, geo.asName].filter(Boolean).join(' ')}`);
+  descriptionLines.push(`**Device:** ${device}${orientation ? ` (${orientation})` : ''}`);
+  if (langShort) descriptionLines.push(`**Lang:** ${langShort}`);
+  if (page && page !== '/') descriptionLines.push(`**Page:** ${page}`);
+  if (refHost) descriptionLines.push(`**Ref:** ${refHost}`);
 
   const fields: { name: string; value: string; inline?: boolean }[] = [];
-  if (vid) fields.push({ name: 'Visitor ID', value: vid, inline: false });
-  if (sid) fields.push({ name: 'Session ID', value: sid, inline: false });
-  if (ip) fields.push({ name: 'IP', value: ip, inline: true });
-  fields.push({ name: 'Event', value: event, inline: true });
-  fields.push({ name: 'Location', value: location, inline: true });
-  if (geo.timezone) fields.push({ name: 'TZ', value: geo.timezone, inline: true });
-  if (geo.postalCode) fields.push({ name: 'Postal', value: geo.postalCode, inline: true });
-  if (geo.asn || geo.asName) fields.push({ name: 'Network', value: [geo.asn, geo.asName].filter(Boolean).join(' '), inline: false });
-  if (vercelId) fields.push({ name: 'Vercel', value: vercelId, inline: false });
-  if (page) fields.push({ name: 'Page', value: page, inline: false });
-  if (typeof isMobile === 'boolean') fields.push({ name: 'Mobile', value: isMobile ? 'Yes' : 'No', inline: true });
-  if (orientation) fields.push({ name: 'Orientation', value: orientation, inline: true });
-  if (referrer) fields.push({ name: 'Referrer', value: referrer, inline: false });
-  if (acceptLang) fields.push({ name: 'Lang', value: acceptLang.slice(0, 80), inline: false });
 
   // Include some session summary details if provided (no IP included).
   if (event === 'session_end') {
     const seconds = typeof payload?.active_seconds === 'number' ? payload.active_seconds : undefined;
     const interactions = typeof payload?.interactions === 'number' ? payload.interactions : undefined;
-    if (typeof seconds === 'number') fields.push({ name: 'Active (s)', value: String(seconds), inline: true });
-    if (typeof interactions === 'number') fields.push({ name: 'Interactions', value: String(interactions), inline: true });
+    const summaryBits: string[] = [];
+    if (typeof seconds === 'number') summaryBits.push(`active \`${seconds}s\``);
+    if (typeof interactions === 'number') summaryBits.push(`interactions \`${interactions}\``);
+    if (firstInteractionSeconds != null) summaryBits.push(`first action \`${firstInteractionSeconds}s\``);
+    if (typeof overlaysUnique === 'number') summaryBits.push(`sections \`${overlaysUnique}\``);
+    if (summaryBits.length) fields.push({ name: 'Summary', value: summaryBits.join(' • '), inline: false });
+
     if (Array.isArray(overlays) && overlays.length) {
       const compact = overlays
         .slice(0, 6)
@@ -147,12 +160,21 @@ function formatDiscordMessage(payload: any, req: any) {
     content: null,
     embeds: [
       {
-        title: 'Portfolio visit',
+        title,
         color: 0xffd700,
         timestamp: new Date().toISOString(),
+        description: descriptionLines.join('\n'),
         fields,
         footer: {
-          text: ua ? `UA: ${ua.slice(0, 160)}` : 'UA: unknown',
+          text: [
+            visitorShort ? `vid:${visitorShort}` : null,
+            sessionShort ? `sid:${sessionShort}` : null,
+            geo.postalCode ? `postal:${geo.postalCode}` : null,
+            vercelId ? `vercel:${vercelId.split('::').pop()}` : null,
+            ua ? `ua:${ua.slice(0, 120)}` : null,
+          ]
+            .filter(Boolean)
+            .join(' • '),
         },
       },
     ],
