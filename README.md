@@ -25,9 +25,9 @@ This project supports optional third‑party analytics. The first‑party tracke
 ### Dossier tracker (optional)
 
 - Client wiring lives in `src/main.ts` and reads `VITE_TRACKER_ENDPOINT`.
-- Set `VITE_TRACKER_ENDPOINT` to your Dossier `/api/collect` URL.
+- For same‑origin routing, `vercel.json` rewrites `/api/*` to the Dossier deployment.
+- Set `VITE_TRACKER_ENDPOINT=/api/collect` (or `off` to disable).
 - The client helper lives in `src/tracking/*` (copied from Dossier for now).
-- If `VITE_TRACKER_ENDPOINT` is unset, first‑party tracking is disabled.
 
 ### Third-party analytics (optional)
 

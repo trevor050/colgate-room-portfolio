@@ -3,7 +3,10 @@
     {
       "source": "/_i/:path*",
       "destination": "https://us.i.posthog.com/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://dossier-chi.vercel.app/api/:path*"
     }
   ]
 }
-
