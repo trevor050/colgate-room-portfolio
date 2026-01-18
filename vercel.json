@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/api/:path*/",
+      "destination": "/api/:path*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/_i/:path*",
