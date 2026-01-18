@@ -11,7 +11,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/_i/, ''),
       },
       '/api': {
-        target: 'https://dossier-chi.vercel.app',
+        target: 'https://dossier-colgate-room-portfolio.vercel.app',
         changeOrigin: true,
         secure: true,
       },

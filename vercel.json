@@ -13,7 +13,7 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "https://dossier-chi.vercel.app/api/:path*"
+      "destination": "https://dossier-colgate-room-portfolio.vercel.app/api/:path*"
     }
   ]
 }
