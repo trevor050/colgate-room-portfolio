@@ -83,7 +83,7 @@ export default async function handler(req: any, res: any) {
     };
   });
 
-  const groupIds = Array.from(new Set(temp.map((v) => v.cluster_id)));
+  const groupIds = Array.from(new Set(temp.map((v: any) => v.cluster_id)));
   const groupMap = new Map<string, string>();
   if (groupIds.length) {
     const groupRes = await query<any>(
@@ -93,7 +93,7 @@ export default async function handler(req: any, res: any) {
     for (const row of groupRes.rows) groupMap.set(row.group_id, row.display_name);
   }
 
-  const visitors = temp.map((v) => ({
+  const visitors = temp.map((v: any) => ({
     ...v,
     cluster_name: groupMap.get(v.cluster_id) ?? makeDisplayName(v.cluster_id),
   }));

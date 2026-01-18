@@ -106,7 +106,13 @@ export default async function handler(req: any, res: any) {
   });
 
   // Enrich bot IPs with a free IP API (cached) to avoid burning IPinfo quota.
-  const ips = Array.from(new Set(sessions.map((s: any) => s.ip).filter(Boolean))).slice(0, 200);
+  const ips = Array.from(
+    new Set(
+      sessions
+        .map((s: any) => s.ip)
+        .filter((ip: any): ip is string => typeof ip === 'string' && ip.length > 0)
+    )
+  ).slice(0, 200);
   const cache = new Map<string, { data: any | null; error: string | null }>();
   if (ips.length) {
     const cacheRes = await query<any>(`SELECT ip, data, error FROM freeip_cache WHERE ip = ANY($1::text[])`, [ips]);
