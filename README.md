@@ -27,6 +27,7 @@ This project supports optional third‑party analytics. The first‑party tracke
 - Client wiring lives in `src/main.ts` and reads `VITE_TRACKER_ENDPOINT`.
 - Set `VITE_TRACKER_ENDPOINT` to your Dossier `/api/collect` URL.
 - The client helper lives in `src/tracking/*` (copied from Dossier for now).
+- If `VITE_TRACKER_ENDPOINT` is unset, first‑party tracking is disabled.
 
 ### Third-party analytics (optional)
 
