@@ -10,10 +10,6 @@
     {
       "source": "/_i/:path*",
       "destination": "https://us.i.posthog.com/:path*"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "https://dossier-colgate-room-portfolio.vercel.app/api/:path*"
     }
   ]
 }

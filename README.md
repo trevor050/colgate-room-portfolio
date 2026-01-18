@@ -20,14 +20,14 @@ All portfolio text/content lives in `src/content.ts`.
 
 ## Analytics
 
-This project supports optional third‑party analytics. The first‑party tracker lives in the separate Dossier repo: `https://github.com/trevor050/dossier`.
+This project includes the Dossier first‑party tracker directly (no separate project required).
 
-### Dossier tracker (optional)
+### Dossier tracker
 
+- Ingest: `POST /api/collect`
+- Admin dashboard: `/api/admin`
 - Client wiring lives in `src/main.ts` and reads `VITE_TRACKER_ENDPOINT`.
-- For same‑origin routing, `vercel.json` rewrites `/api/*` to the Dossier deployment.
 - Set `VITE_TRACKER_ENDPOINT=/api/collect` (or `off` to disable).
-- The client helper lives in `src/tracking/*` (copied from Dossier for now).
 
 ### Third-party analytics (optional)
 
