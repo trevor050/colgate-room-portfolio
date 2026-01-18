@@ -20,12 +20,13 @@ All portfolio text/content lives in `src/content.ts`.
 
 ## Analytics
 
-This project supports optional third‑party analytics. The first‑party tracker has been extracted to `dossier/README.md`.
+This project supports optional third‑party analytics. The first‑party tracker lives in the separate Dossier repo: `https://github.com/trevor050/dossier`.
 
 ### Dossier tracker (optional)
 
 - Client wiring lives in `src/main.ts` and reads `VITE_TRACKER_ENDPOINT`.
-- For a separate Dossier deployment, set `VITE_TRACKER_ENDPOINT` to the Dossier `/api/collect` URL.
+- Set `VITE_TRACKER_ENDPOINT` to your Dossier `/api/collect` URL.
+- The client helper lives in `src/tracking/*` (copied from Dossier for now).
 
 ### Third-party analytics (optional)
 

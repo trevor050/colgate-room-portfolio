@@ -3,8 +3,8 @@ import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEven
 import { GlowFilter } from 'pixi-filters';
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
-import { getTrackerConfig } from '../dossier/src/tracking/config';
-import { createTelemetryClient } from '../dossier/src/tracking/telemetry';
+import { getTrackerConfig } from './tracking/config';
+import { createTelemetryClient, type TelemetrySummary } from './tracking/telemetry';
 import { content } from './content';
 
 if (import.meta.env.PROD) {
@@ -234,12 +234,24 @@ function isInternalDevice(): boolean {
   }
 }
 
+type TelemetryClient = ReturnType<typeof createTelemetryClient>;
+
 const trackerConfig = getTrackerConfig();
-const telemetry = createTelemetryClient({
-  endpoint: trackerConfig.endpoint,
-  persistVisitorId: trackerConfig.persist,
-  shouldIgnore: () => !import.meta.env.PROD || isInternalDevice(),
-});
+const noopTelemetry: TelemetryClient = {
+  track: () => {},
+  installGlobalTracking: () => {},
+  ensureVisit: () => {},
+  flush: () => Promise.resolve(),
+  buildTimingSummary: (summary) => summary as TelemetrySummary,
+};
+
+const telemetry: TelemetryClient = trackerConfig.endpoint
+  ? createTelemetryClient({
+      endpoint: trackerConfig.endpoint,
+      persistVisitorId: trackerConfig.persist,
+      shouldIgnore: () => !import.meta.env.PROD || isInternalDevice(),
+    })
+  : noopTelemetry;
 
 function setupClientAnalytics() {
   const isMobileMq = window.matchMedia('(max-width: 900px)');
