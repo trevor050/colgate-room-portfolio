@@ -8,6 +8,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/admin/:path*",
+      "destination": "/api/admin?route=:path*"
+    },
+    {
       "source": "/_i/:path*",
       "destination": "https://us.i.posthog.com/:path*"
     }
