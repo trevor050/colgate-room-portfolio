@@ -3,8 +3,8 @@ import { Application, Container, Graphics, Text, TextStyle, FederatedPointerEven
 import { GlowFilter } from 'pixi-filters';
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
-import { getTrackerConfig } from './tracking/config';
-import { createTelemetryClient, type TelemetrySummary } from './tracking/telemetry';
+import { getTrackerConfig } from '@trevor050/dossier/client/config';
+import { createTelemetryClient, type TelemetrySummary } from '@trevor050/dossier/client/telemetry';
 import { content } from './content';
 
 if (import.meta.env.PROD) {
@@ -242,6 +242,9 @@ const noopTelemetry: TelemetryClient = {
   installGlobalTracking: () => {},
   ensureVisit: () => {},
   flush: () => Promise.resolve(),
+  flushReplay: () => Promise.resolve(),
+  startReplay: () => Promise.resolve(),
+  stopReplay: () => {},
   buildTimingSummary: (summary) => summary as TelemetrySummary,
 };
 

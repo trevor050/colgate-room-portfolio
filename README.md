@@ -20,11 +20,12 @@ All portfolio text/content lives in `src/content.ts`.
 
 ## Analytics
 
-This project includes the Dossier first‑party tracker directly (no separate project required).
+This project uses the Dossier first‑party tracker via the `@trevor050/dossier` package (single Vercel project).
 
 ### Dossier tracker
 
 - Ingest: `POST /api/collect`
+- Replay ingest: `POST /api/replay` (optional)
 - Admin dashboard: `/api/admin`
 - Client wiring lives in `src/main.ts` and reads `VITE_TRACKER_ENDPOINT`.
 - Set `VITE_TRACKER_ENDPOINT=/api/collect` (or `off` to disable).

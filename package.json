@@ -15,9 +15,8 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
-    "@fingerprintjs/fingerprintjs": "^5.0.1",
     "@vercel/analytics": "^1.6.1",
-    "pg": "^8.17.1",
+    "@trevor050/dossier": "github:trevor050/dossier#f891480",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.15.0",
     "posthog-js": "^1.326.0"
