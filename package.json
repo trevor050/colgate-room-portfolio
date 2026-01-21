@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
-    "@trevor050/dossier": "github:trevor050/dossier#3eb68d8",
+    "@trevor050/dossier": "github:trevor050/dossier#a05ece3",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.15.0",
     "posthog-js": "^1.326.0"
