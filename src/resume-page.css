@@ -1,0 +1,197 @@
+/* The plain resume page reuses the room's content styles (style.css) as a normal scrolling document. */
+html.resume-html,
+body.resume-page {
+  position: static;
+  overflow: auto;
+  height: auto;
+  min-height: 100%;
+}
+
+body.resume-page {
+  background: #1a1a2e;
+  color: #e0e0e0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.resume-header {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.resume-back,
+.resume-print {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 9px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 9px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.resume-back:hover,
+.resume-print:hover,
+.resume-back:focus-visible,
+.resume-print:focus-visible {
+  color: #ffd700;
+  border-color: rgba(212, 168, 84, 0.6);
+}
+
+.resume-back:focus-visible,
+.resume-print:focus-visible {
+  outline: 2px dashed #ffd700;
+  outline-offset: 3px;
+}
+
+.resume-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 36px 24px 64px;
+}
+
+.resume-title {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 22px;
+  line-height: 1.4;
+  color: #fff;
+  text-shadow: 2px 2px 0 #333;
+}
+
+.resume-subtitle {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: #aaa;
+  margin-top: 10px;
+}
+
+.resume-section {
+  margin-top: 44px;
+  padding-top: 36px;
+  border-top: 1px solid rgba(212, 168, 84, 0.25);
+  scroll-margin-top: 16px;
+}
+
+@media screen and (max-width: 600px) {
+  .resume-header {
+    padding: 16px 16px 0;
+  }
+
+  .resume-main {
+    padding: 28px 16px 48px;
+  }
+
+  .resume-title {
+    font-size: 16px;
+  }
+
+  .resume-content h2 {
+    font-size: 14px;
+  }
+
+  .resume-content p {
+    font-size: 19px;
+  }
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html.resume-html,
+  body.resume-page {
+    background: #fff;
+    color: #111;
+  }
+
+  .resume-header {
+    display: none;
+  }
+
+  .resume-main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .resume-title,
+  .resume-content h2,
+  .resume-content h3,
+  .featured-title,
+  .project-header h3 {
+    color: #111 !important;
+    text-shadow: none !important;
+  }
+
+  .resume-subtitle {
+    display: none;
+  }
+
+  .resume-section {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid #bbb;
+  }
+
+  .resume-section h2 {
+    break-after: avoid;
+  }
+
+  .pixel-icon {
+    display: none;
+  }
+
+  .resume-content .highlight {
+    color: #111;
+  }
+
+  .resume-content,
+  .resume-content p,
+  .project-card p,
+  .featured-description,
+  .award-name,
+  .class-name,
+  .sat-section-name {
+    color: #222 !important;
+  }
+
+  .featured-award,
+  .award-card,
+  .class-card,
+  .project-card,
+  .resume-content .stat,
+  .gpa-display,
+  .sat-display {
+    background: none !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+  }
+
+  .gpa-value,
+  .sat-value,
+  .sat-section-score {
+    color: #111;
+    text-shadow: none;
+  }
+
+  .featured-award .pixel-icon.trophy {
+    animation: none;
+  }
+
+  .featured-award,
+  .project-card,
+  .award-card,
+  .class-card {
+    break-inside: avoid;
+  }
+}
