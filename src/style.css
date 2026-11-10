@@ -37,6 +37,11 @@ body {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+body > main {
+  width: 100%;
+  height: 100%;
+}
+
 #game-container {
   width: 100%;
   height: 100%;
@@ -165,11 +170,11 @@ body {
   transform: scale(1.2);
 }
 
-#overlay-body {
+.resume-content {
   color: #e0e0e0;
 }
 
-#overlay-body h2 {
+.resume-content h2 {
   font-family: 'Press Start 2P', cursive;
   font-size: 18px;
   color: #ffd700;
@@ -178,7 +183,7 @@ body {
   line-height: 1.5;
 }
 
-#overlay-body h3 {
+.resume-content h3 {
   font-family: 'Press Start 2P', cursive;
   font-size: 12px;
   color: #88ccff;
@@ -186,7 +191,7 @@ body {
   text-shadow: 1px 1px 0 #333;
 }
 
-#overlay-body p {
+.resume-content p {
   font-size: 22px;
   line-height: 1.6;
   margin-bottom: 12px;
@@ -198,12 +203,12 @@ body {
   font-size: 18px;
 }
 
-#overlay-body ul {
+.resume-content ul {
   list-style: none;
   padding-left: 0;
 }
 
-#overlay-body li {
+.resume-content li {
   font-size: 20px;
   padding: 8px 0;
   padding-left: 24px;
@@ -211,18 +216,18 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
-#overlay-body li:last-child {
+.resume-content li:last-child {
   border-bottom: none;
 }
 
-#overlay-body li::before {
+.resume-content li::before {
   content: '▸';
   position: absolute;
   left: 0;
   color: #ffd700;
 }
 
-#overlay-body .stat {
+.resume-content .stat {
   display: flex;
   justify-content: space-between;
   padding: 12px 0;
@@ -230,16 +235,16 @@ body {
   font-size: 22px;
 }
 
-#overlay-body .stat-label {
+.resume-content .stat-label {
   color: #aaa;
 }
 
-#overlay-body .stat-value {
+.resume-content .stat-value {
   color: #4ade80;
   font-weight: bold;
 }
 
-#overlay-body .highlight {
+.resume-content .highlight {
   color: #ffd700;
   font-weight: bold;
 }
@@ -726,7 +731,7 @@ body {
 /* ==========================================
    ACADEMICS STATS (improved)
    ========================================== */
-#overlay-body .stat {
+.resume-content .stat {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -740,17 +745,17 @@ body {
   transition: all 0.2s ease;
 }
 
-#overlay-body .stat:hover {
+.resume-content .stat:hover {
   background: rgba(255, 255, 255, 0.05);
   transform: translateX(4px);
 }
 
-#overlay-body .stat-label {
+.resume-content .stat-label {
   color: #999;
   font-size: 18px;
 }
 
-#overlay-body .stat-value {
+.resume-content .stat-value {
   color: #4ade80;
   font-weight: bold;
   font-size: 22px;
@@ -1144,5 +1149,177 @@ body {
   
   .featured-details {
     justify-content: flex-start;
+  }
+}
+
+/* ==========================================
+   ACCESSIBILITY AND ESCAPE HATCHES
+   ========================================== */
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Link to the plain resume, always available in the top-right corner */
+.plain-link {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(14px + env(safe-area-inset-right));
+  z-index: 400;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(26, 26, 46, 0.55);
+  transition: color 0.2s, background 0.2s;
+}
+
+.plain-link:hover,
+.plain-link:focus-visible {
+  color: #ffd700;
+  background: rgba(26, 26, 46, 0.85);
+}
+
+/* Keyboard and screen reader layer over the canvas objects. Mouse and touch
+   input passes through to the canvas; focus shows a ring and the object's glow. */
+.room-nav {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.room-target {
+  position: fixed;
+  pointer-events: none;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: transparent;
+  font-size: 1px;
+  overflow: hidden;
+}
+
+.room-target:focus {
+  outline: none;
+}
+
+.room-target:focus-visible {
+  outline: 2px dashed #ffd700;
+  outline-offset: 4px;
+}
+
+.overlay-content:focus {
+  outline: none;
+}
+
+.close-btn:focus-visible,
+.plain-link:focus-visible,
+.loading-escape:focus-visible,
+.rotate-device-action:focus-visible {
+  outline: 2px dashed #ffd700;
+  outline-offset: 3px;
+}
+
+/* The desktop-warning banner would cover the bottom of an open panel */
+body.panel-open .mobile-warning {
+  display: none;
+}
+
+/* Loading: offer the plain resume if the room is slow or fails */
+#loading {
+  flex-direction: column;
+  gap: 22px;
+}
+
+.loading-escape,
+.loading-noscript {
+  font-family: 'VT323', monospace;
+  font-size: 20px;
+  color: #aaa;
+}
+
+.loading-escape {
+  color: #d4a854;
+  opacity: 0;
+  animation: fadeIn 0.4s ease 4s forwards;
+}
+
+#loading.failed .loading-text {
+  animation: none;
+}
+
+#loading.failed .loading-escape {
+  animation: none;
+  opacity: 1;
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+/* Rotate prompt: let people read the resume or use the room in portrait anyway */
+.rotate-device-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.rotate-device-action {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #ccc;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rotate-device-action.primary {
+  color: #1a1a2e;
+  background: linear-gradient(135deg, #d4a854, #ffd700);
+  border-color: transparent;
+}
+
+@media screen and (max-width: 600px) and (orientation: portrait) {
+  html.allow-portrait .rotate-device {
+    display: none;
+  }
+
+  html.allow-portrait #game-container {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .loading-escape {
+    animation-delay: 4s !important;
   }
 }

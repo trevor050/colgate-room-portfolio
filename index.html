@@ -6,33 +6,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#1a1a2e" />
     <title>Trevor's Room | Portfolio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <meta name="description" content="%SITE_DESCRIPTION%" />
+    <link rel="canonical" href="%SITE_URL%/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Trevor's Room" />
+    <meta property="og:title" content="Trevor's Room" />
+    <meta property="og:description" content="%SITE_DESCRIPTION%" />
+    <meta property="og:url" content="%SITE_URL%/" />
+    <meta property="og:image" content="%SITE_URL%/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A cozy pixel-art bedroom with framed awards, a wall calendar, a study desk and a computer desk." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Trevor's Room" />
+    <meta name="twitter:description" content="%SITE_DESCRIPTION%" />
+    <meta name="twitter:image" content="%SITE_URL%/og.png" />
   </head>
   <body>
-    <div id="mobile-warning" class="mobile-warning">This site is best viewed on desktop.</div>
-    <div id="game-container"></div>
-    
+    <a id="plain-link" class="plain-link" href="./resume">Plain resume</a>
+    <div id="mobile-warning" class="mobile-warning" aria-hidden="true">This site is best viewed on desktop.</div>
+    <main>
+      <h1 class="visually-hidden">Trevor's Room</h1>
+      <div id="game-container"></div>
+      <nav id="room-nav" class="room-nav" aria-label="Things in the room"></nav>
+    </main>
+
     <!-- Overlay Modal -->
-    <div id="overlay" class="overlay">
-      <div class="overlay-content">
-        <button class="close-btn" id="close-overlay">×</button>
-        <div id="overlay-body"></div>
+    <div id="overlay" class="overlay" inert aria-hidden="true">
+      <div class="overlay-content" role="dialog" aria-modal="true" aria-labelledby="overlay-title" tabindex="-1">
+        <button class="close-btn" id="close-overlay" type="button" aria-label="Close">×</button>
+        <div id="overlay-body" class="resume-content"></div>
       </div>
     </div>
 
     <!-- Loading Screen -->
-    <div id="loading">
+    <div id="loading" role="status">
       <div class="loading-text">Loading room...</div>
+      <a class="loading-escape" href="./resume">Taking a while? Read the plain resume</a>
+      <noscript>
+        <style>.loading-text { display: none; } .loading-escape { animation: none; opacity: 1; }</style>
+        <p class="loading-noscript">The room needs JavaScript.</p>
+      </noscript>
     </div>
 
     <!-- Mobile Rotate Message -->
     <div class="rotate-device">
-      <div class="rotate-device-icon"></div>
+      <div class="rotate-device-icon" aria-hidden="true"></div>
       <div class="rotate-device-text">Please rotate<br>your device</div>
       <div class="rotate-device-subtext">This experience works best in landscape</div>
+      <div class="rotate-device-actions">
+        <a class="rotate-device-action primary" href="./resume">Read the plain resume</a>
+        <button class="rotate-device-action" id="show-room-anyway" type="button">Show the room anyway</button>
+      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>
