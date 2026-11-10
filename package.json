@@ -18,7 +18,7 @@
   "dependencies": {
     "@fontsource/press-start-2p": "^5.3.0",
     "@fontsource/vt323": "^5.3.0",
-    "@trevor050/dossier": "github:trevor050/dossier#dc2a8dcee599e98cb2d84a78ae670de37fbbb82e",
+    "@trevor050/dossier": "github:trevor050/dossier#d68c712d83f70458300c9a1038cfce7617727d20",
     "@vercel/analytics": "^2.0.1",
     "pixi-filters": "^6.1.5",
     "pixi.js": "^8.22.0",
